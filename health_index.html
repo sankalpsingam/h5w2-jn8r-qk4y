@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adwaita Desai — Health Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#fafaf8; --card:#ffffff; --ink:#1a1a1a; --ink2:#6b6b6b; --ink3:#9a9a9a;
+  --line:#e8e6e1; --accent:#2f6f5e; --accent-soft:#e7f0ed;
+  --high:#b4553d; --high-soft:#f7ebe7; --low:#3d6bb4; --low-soft:#e9eef7;
+  --ok:#2f6f5e; --ok-soft:#e7f0ed; --band:rgba(47,111,94,.07);
+  --shadow:0 1px 3px rgba(0,0,0,.04);
+}
+[data-theme="dark"]{
+  --bg:#141416; --card:#1d1d20; --ink:#ececea; --ink2:#a0a09c; --ink3:#6e6e6a;
+  --line:#2c2c30; --accent:#6fb59e; --accent-soft:#22322d;
+  --high:#d98b74; --high-soft:#372620; --low:#7fa3d9; --low-soft:#20293a;
+  --ok:#6fb59e; --ok-soft:#22322d; --band:rgba(111,181,158,.09);
+  --shadow:0 1px 3px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px 80px}
+header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:14px 0;margin-bottom:32px}
+.hrow{max-width:1060px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hname{font-size:17px;font-weight:650;letter-spacing:-.01em}
+.hmeta{font-size:12.5px;color:var(--ink2)}
+.hspace{flex:1}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav a{font-size:12.5px;color:var(--ink2);text-decoration:none;padding:5px 10px;border-radius:20px}
+nav a:hover{background:var(--accent-soft);color:var(--accent)}
+.btn{font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--ink2);padding:5px 12px;border-radius:20px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+h2{font-size:13px;font-weight:650;text-transform:uppercase;letter-spacing:.09em;color:var(--ink2);margin:52px 0 8px}
+.sub{font-size:13.5px;color:var(--ink2);margin-bottom:20px;max-width:720px}
+.disclaimer{font-size:12px;color:var(--ink3);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:24px 0}
+/* snapshot */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+.card .t{font-size:12px;color:var(--ink2);margin-bottom:6px}
+.card .v{font-size:22px;font-weight:650;letter-spacing:-.02em}
+.card .v small{font-size:12px;font-weight:400;color:var(--ink3);margin-left:3px}
+.card .d{font-size:11.5px;color:var(--ink3);margin-top:5px}
+.pill{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;margin-top:7px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.hi{background:var(--high-soft);color:var(--high)}
+.pill.lo{background:var(--low-soft);color:var(--low)}
+.pill.stale{background:var(--line);color:var(--ink2)}
+/* timeline */
+.tl{border-left:2px solid var(--line);margin-left:8px;padding-left:26px}
+.tle{position:relative;padding-bottom:26px}
+.tle:last-child{padding-bottom:4px}
+.tle::before{content:"";position:absolute;left:-33px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2.5px solid var(--accent)}
+.tle.warn::before{border-color:var(--high)}
+.tle .td{font-size:11.5px;font-weight:650;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
+.tle .tt{font-weight:650;margin:2px 0 3px;font-size:15px}
+.tle .tx{font-size:13.5px;color:var(--ink2);max-width:640px}
+/* charts */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr}}
+.chartcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px 10px;box-shadow:var(--shadow)}
+.chartcard h3{font-size:13.5px;font-weight:650;margin-bottom:1px}
+.chartcard .cr{font-size:11.5px;color:var(--ink3);margin-bottom:10px}
+.chartcard.big{grid-column:1/-1}
+.cwrap{position:relative;height:180px}
+.big .cwrap{height:260px}
+.insight{background:var(--accent-soft);border-radius:12px;padding:14px 18px;font-size:13.5px;color:var(--ink);margin:16px 0 0;max-width:100%}
+.insight b{color:var(--accent)}
+/* watch list */
+.watch{display:flex;flex-direction:column;gap:10px}
+.wi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;display:flex;gap:14px;align-items:flex-start;box-shadow:var(--shadow)}
+.wi .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.wi .dot.r{background:var(--high)}.wi .dot.y{background:#c9a227}.wi .dot.g{background:var(--ok)}
+.wi b{font-size:14px}
+.wi p{font-size:13px;color:var(--ink2);margin-top:2px}
+/* table */
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.controls input[type=text],.controls select{font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);outline:none}
+.controls label{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:6px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tablewrap{border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:520px;box-shadow:var(--shadow)}
+.tablewrap table{border:none}
+th{position:sticky;top:0;background:var(--card);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink2);padding:10px 14px;border-bottom:1px solid var(--line);z-index:2}
+td{padding:8px 14px;border-bottom:1px solid var(--line);color:var(--ink)}
+tr:last-child td{border-bottom:none}
+td .fH{color:var(--high);font-weight:650}td .fL{color:var(--low);font-weight:650}
+.count{font-size:12px;color:var(--ink3);margin:8px 2px}
+footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var(--line);padding-top:18px}
+/* print */
+#printview{display:none}
+@media print{
+  body{background:#fff;color:#000;font-size:11.5px}
+  header,#snapshot,#journey,#trends,#watchlist,#alldata,footer,.disclaimer{display:none!important}
+  #printview{display:block;padding:10px}
+  #printview h1{font-size:18px;margin-bottom:2px}
+  #printview .pm{font-size:11px;color:#444;margin-bottom:14px}
+  #printview h2{margin:16px 0 6px;color:#000;font-size:12px}
+  #printview table{font-size:10.5px;border:1px solid #ccc}
+  #printview th,#printview td{padding:4px 8px;border-bottom:1px solid #ddd}
+  #printview ul{margin:4px 0 4px 18px;font-size:11px}
+  #printview li{margin-bottom:3px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div>
+      <div class="hname">Adwaita Desai</div>
+      <div class="hmeta">DOB 11 Nov 1993 · <span id="age"></span> · Records Oct 2024 – Jun 2026 · Clinipath · ACL · Metropolis</div>
+    </div>
+    <div class="hspace"></div>
+    <nav>
+      <a href="#snapshot">Snapshot</a><a href="#journey">Journey</a><a href="#trends">Trends</a><a href="#watchlist">Watch list</a><a href="#alldata">All results</a>
+    </nav>
+    <button class="btn" onclick="window.print()">Print doctor summary</button>
+    <button class="btn" id="themebtn" onclick="toggleTheme()">Dark</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="disclaimer"><b>Reference ranges are set for conception, not the general population.</b> Flags and shaded chart bands reflect commonly-used <b>preconception / fertility targets</b> — which are tighter than standard lab ranges for several markers. Most consequential: TSH is held to &lt;2.5 mU/L (rather than &lt;4.0), which matters more here because of the positive thyroid antibodies; ferritin aims for ≥50 µg/L to build iron stores for pregnancy; vitamin D for ≥75 nmol/L; B12 for ≥220 pmol/L; mid-luteal progesterone ≥30 nmol/L as a marker of strong ovulation. These targets vary by guideline and clinician and are shown alongside each lab's own reference. This is descriptive context, <b>not medical advice</b> — the treating fertility clinic has the full picture and every decision belongs with them.</div>
+
+<!-- SNAPSHOT -->
+<section id="snapshot">
+  <h2>Snapshot — most recent value per marker</h2>
+  <p class="sub">Where things stand today, judged against preconception targets (not standard population ranges). Grey "retest?" pills mark values old enough that they may no longer reflect current status.</p>
+  <div class="cards" id="snapcards"></div>
+</section>
+
+<!-- JOURNEY -->
+<section id="journey">
+  <h2>The health journey</h2>
+  <p class="sub">Twenty months of records tell one main story — an autoimmune thyroid condition found, treated, and stabilised — with iron and vitamin D corrected along the way.</p>
+  <div class="tl" id="timeline"></div>
+</section>
+
+<!-- TRENDS -->
+<section id="trends">
+  <h2>Thyroid</h2>
+  <div class="grid2">
+    <div class="chartcard big"><h3>TSH</h3><div class="cr">Preconception target 0.4 – 2.5 mU/L (shaded) · lab general ref 0.4 – 4.0</div><div class="cwrap"><canvas id="c_tsh"></canvas></div></div>
+    <div class="chartcard"><h3>Free T4</h3><div class="cr">Ref 9–19 (Clinipath) / 9–25 (ACL) pmol/L</div><div class="cwrap"><canvas id="c_ft4"></canvas></div></div>
+    <div class="chartcard"><h3>Free T3</h3><div class="cr">Ref 3.0–5.5 (Clinipath) / 3.5–6.5 (ACL) pmol/L</div><div class="cwrap"><canvas id="c_ft3"></canvas></div></div>
+    <div class="chartcard big"><h3>Thyroid antibodies</h3><div class="cr">TPO ref &lt;6 · Thyroglobulin ref &lt;4 IU/mL — both strongly positive, trending down between tests</div><div class="cwrap"><canvas id="c_ab"></canvas></div></div>
+  </div>
+  <div class="insight"><b>Context (conception lens).</b> Against the preconception target of &lt;2.5 mU/L, TSH was above target from late 2024 through mid-2025 (5.06 → 6.12 → 4.15), with strongly positive TPO and thyroglobulin antibodies — a Hashimoto's pattern. It then swung fully suppressed (0.02) in Oct 2025. The new Metropolis (India) draws fill in a previously missing window: <b>TSH climbed high again — 5.72 (5 Dec 2025) and 4.79 (6 Jan 2026)</b> — with normal free hormones, a subclinical-hypothyroid relapse the Indian lab flagged and linked to possible intermittent thyroxine. It then settled to 2.10 by Feb 2026. So the "stable since Feb" picture is real but was preceded by a genuine off-target stretch. Since Feb most values sit on target, with two exceptions — 2.59 (Mar) and 3.14 (May) sit above the &lt;2.5 target — and the last was <b>1.10 on 25 Jun 2026</b> (on target). With positive antibodies and the Dec–Jan wobble, consistent thyroxine and tight TSH control while trying to conceive is the single most important thing to keep confirming with the clinic. <i>(FT4/FT3 from Metropolis were converted from ng/dL and pg/mL; cross-lab points are approximate.)</i></div>
+
+  <h2>Iron & red cells</h2>
+  <div class="grid3">
+    <div class="chartcard"><h3>Ferritin</h3><div class="cr">Preconception target ≥50 µg/L (shaded) · lab ref ≥30</div><div class="cwrap"><canvas id="c_fer"></canvas></div></div>
+    <div class="chartcard"><h3>MCV</h3><div class="cr">Ref 80 – 100 fL</div><div class="cwrap"><canvas id="c_mcv"></canvas></div></div>
+    <div class="chartcard"><h3>MCH</h3><div class="cr">Ref 27 – 32 pg</div><div class="cwrap"><canvas id="c_mch"></canvas></div></div>
+    <div class="chartcard"><h3>Haemoglobin</h3><div class="cr">Ref 115 – 165 g/L</div><div class="cwrap"><canvas id="c_hb"></canvas></div></div>
+    <div class="chartcard"><h3>Iron & saturation</h3><div class="cr">Iron ref 5–30 µmol/L · Sat ref 10–45%</div><div class="cwrap"><canvas id="c_iron"></canvas></div></div>
+    <div class="chartcard"><h3>Platelets & WCC</h3><div class="cr">Plt 150–400/450 ×10⁹/L · WCC 4–11 ×10⁹/L</div><div class="cwrap"><canvas id="c_plt"></canvas></div></div>
+  </div>
+  <div class="insight"><b>Context (conception lens).</b> Preconception, ferritin is aimed at ≥50 µg/L — higher than the ≥30 general floor — so the body has iron stores to draw on through pregnancy. Ferritin sat well below that for a year (17 → 26 → 25) with the classic small, pale red-cell picture (low MCV/MCH); thalassaemia was excluded (normal electrophoresis, Mar 2025), pinning it on iron deficiency. By Oct 2025 it reached <b>58</b> — just clearing the ≥50 target — and MCV/MCH normalised. The Jan 2026 Metropolis panel adds reassurance on circulating iron — serum iron 18.8 µmol/L and transferrin saturation up to 34.7% (from 16 → 23), with a normal-morphology blood film — though it did <b>not</b> include ferritin, so stored iron still hasn't been rechecked since the 58 in Oct 2025. The Mar 2026 FBC then noted hypochromic cells with marginally low MCH (26.8) and iron studies "pending." A current ferritin remains the one clean way to close this out.</div>
+
+  <h2>Vitamins & hormones</h2>
+  <div class="grid3">
+    <div class="chartcard"><h3>Vitamin D (25-OH)</h3><div class="cr">Preconception target ≥75 nmol/L (shaded) · general sufficiency ≥50</div><div class="cwrap"><canvas id="c_vitd"></canvas></div></div>
+    <div class="chartcard"><h3>Prolactin</h3><div class="cr">Ref &lt;425 mIU/L</div><div class="cwrap"><canvas id="c_prl"></canvas></div></div>
+    <div class="chartcard"><h3>Progesterone</h3><div class="cr">Mid-luteal ≥30 nmol/L suggests strong ovulation (shaded) · lab ref &gt;6</div><div class="cwrap"><canvas id="c_prog"></canvas></div></div>
+  </div>
+  <div class="insight"><b>Context (conception lens).</b> Vitamin D nudged up (32 → 55 → <b>67</b>, Jan 2026 = 26.7 ng/mL converted) but is still <b>below the ≥75 preconception target</b>. B12 also improved (188 → <b>202</b>) yet remains <b>below the ≥220 preconception preference</b>. Prolactin is the notable change: after being high (741, Oct 2024) then normal (333, Mar 2025), it is <b>high again — 774 mIU/L (Jan 2026, from 36.5 ng/mL)</b>. High prolactin can disrupt ovulation; the Metropolis lab called this "mild excess," often from stress/exercise, and suggested rechecking after a month — worth pursuing since it recurred. On ovarian reserve: AMH is stable (13.0 → <b>12.3 pmol/L</b>), but the Jan 2026 lab classified 1.72 ng/mL as "Low" for her age with an anticipated antral follicle count of 4–10 and a reduced expected IVF response — a more cautious read than the earlier "adequate reserve," and a key point to discuss with the fertility team. FSH 7.55 is normal. Reassuring: strong mid-luteal progesterone (36.5), hCG negative on both Mar 2026 draws.</div>
+
+  <h2>Lipids — single panel, Oct 2024</h2>
+  <div class="cards" id="lipidcards"></div>
+  <div class="insight"><b>Context.</b> There are now two lipid panels. The Oct 2024 one (pre-thyroxine) was broadly high — LDL 3.8, cholesterol 5.2, ratio 5.2. The <b>Jan 2026</b> panel is much improved: cholesterol 4.2, LDL 3.0, non-HDL 3.3 all back in/near range, and ApoB 95 with ApoB/A1 0.83 both acceptable — consistent with the idea that treating the thyroid helped. The one persistent flag is <b>low HDL (0.9–1.0 throughout)</b>, which stays a cardiovascular consideration.</div>
+
+  <h2>New in Jan 2026 — metabolic, inflammatory & first full screen</h2>
+  <p class="sub">The Metropolis panel added markers not tested before. These are single readings (Jan 2026) — useful as a new baseline rather than a trend.</p>
+  <div class="cards" id="metcards"></div>
+  <div class="insight"><b>Context.</b> Three genuinely new signals worth flagging. <b>Impaired fasting glucose</b> (102 mg/dL, ref 70–99) sits just into the IFG band — but HbA1c is reassuringly normal at 5.3% and the post-meal glucose was fine (109), so this looks like an isolated fasting reading rather than established pre-diabetes; a repeat fasting glucose would clarify. <b>Uric acid</b> is mildly high (6.3, ref &lt;6.0). <b>CRP and HsCRP are both raised</b> (5.75 and 5.21) — the HsCRP falls in the higher-cardiovascular-risk band, but the lab explicitly cautions that HsCRP shouldn't be read during any infection or inflammation, which can falsely elevate it, so it needs a calm-state repeat before it means anything. Everything else in this first comprehensive screen — liver, kidney, calcium/phosphorus, electrolytes, HbA1c, CPK, LDH, CEA, ESR and a full urine analysis — was normal.</div>
+</section>
+
+<!-- WATCH LIST -->
+<section id="watchlist">
+  <h2>Watch list — things to raise with the doctor</h2>
+  <p class="sub">Derived purely from gaps and loose ends in the records. Priorities are about data freshness, not clinical urgency.</p>
+  <div class="watch" id="watchitems"></div>
+</section>
+
+<!-- ALL DATA -->
+<section id="alldata">
+  <h2>Every result on record</h2>
+  <div class="controls">
+    <input type="text" id="q" placeholder="Search test…" oninput="renderTable()">
+    <select id="catf" onchange="renderTable()"><option value="">All categories</option></select>
+    <label><input type="checkbox" id="flagonly" onchange="renderTable()"> Off-target only</label>
+  </div>
+  <div class="tablewrap"><table id="bigtable">
+    <thead><tr><th>Date</th><th>Category</th><th>Test</th><th>Result</th><th>Unit</th><th>Target / reference</th><th>Flag</th><th>Lab</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+  <div class="count" id="rowcount"></div>
+</section>
+
+<footer>Built from Clinipath Pathology (Sonic Dx), Australian Clinical Labs and Metropolis Healthcare (India) extracts · 18 collection dates, Oct 2024 – Jun 2026 · Metropolis values unit-converted to match · Not medical advice.</footer>
+</div>
+
+<!-- PRINT-ONLY DOCTOR SUMMARY -->
+<div id="printview">
+  <h1>Adwaita Desai — Pathology Summary</h1>
+  <div class="pm">DOB 11/11/1993 · Female · Records 24 Oct 2024 – 25 Jun 2026 · Labs: Clinipath Pathology, Australian Clinical Labs · Targets shown are preconception/fertility-oriented (tighter than standard ranges) · Prepared from lab extracts — not medical advice</div>
+  <h2>Active context</h2>
+  <ul>
+    <li><b>Autoimmune thyroiditis (Hashimoto's), on thyroxine — held to preconception TSH &lt;2.5.</b> TSH 5.06→6.12 (Oct 24–Mar 25), TPO Ab 193.7 &amp; Tg Ab 50.8 (Mar 25); suppressed 0.02–0.17 (Oct–Nov 25); <b>relapsed 5.72 (Dec 25) &amp; 4.79 (Jan 26)</b> — ?intermittent thyroxine; back on target Feb 26 (2.10). 2026: 2.10, 2.59, 3.14, 0.88, 1.10 (2.59 &amp; 3.14 above &lt;2.5). Last 1.10 (25/06/26).</li>
+    <li><b>Prolactin — recurrent mild elevation.</b> 741 (Oct 24) → 333 (Mar 25) → <b>~774 mIU/L / 36.5 ng/mL (Jan 26)</b>. Lab advised repeat after a month.</li>
+    <li><b>Ovarian reserve — AMH age-'low'.</b> AMH 13.0→12.3 pmol/L (1.72 ng/mL, Jan 26 graded Low for age; AFC 4–10, reduced expected IVF response). FSH 7.55 normal. Progesterone 36.5 (strong ovulation); hCG negative 02/03/26 &amp; 30/03/26. "Trying to get pregnant" noted Mar 25.</li>
+    <li><b>Iron.</b> Ferritin 17→26→25→58 (Oct 25); Jan 26 iron 18.8 &amp; sat 34.7% normal but <b>no ferritin repeated</b>. Target ≥50 preconception.</li>
+    <li><b>New Jan 26 findings.</b> Impaired fasting glucose 102 (HbA1c normal 5.3); uric acid 6.3 (high); CRP 5.75 &amp; HsCRP 5.21 (high — repeat when well). Lipids improved (chol 4.2, LDL 3.0, low HDL 0.9). Vit D 67 &amp; B12 202 — both below preconception targets (≥75, ≥220).</li>
+  </ul>
+  <h2>Most recent results</h2>
+  <table><thead><tr><th>Test</th><th>Result</th><th>Ref</th><th>Date</th></tr></thead><tbody id="printlatest"></tbody></table>
+  <h2>For discussion / possibly due (conception priorities)</h2>
+  <ul>
+    <li>TSH &lt;2.5 with positive antibodies — confirm thyroxine dose &amp; monitoring cadence after the Dec–Jan relapse (5.72, 4.79)</li>
+    <li>Prolactin — recurrent mild elevation (~774, Jan 26); lab advised repeat after a month</li>
+    <li>AMH graded age-'low' (Jan 26) — discuss ovarian reserve &amp; conception timeline with fertility team</li>
+    <li>Ferritin — not repeated since 07/10/25 (58); circulating iron normal Jan 26 but stores unconfirmed</li>
+    <li>Repeat fasting glucose (102, IFG) and CRP/HsCRP (raised — recheck when infection-free)</li>
+    <li>Vitamin D 67 &amp; B12 202 — continue topping up toward ≥75 / ≥220</li>
+  </ul>
+</div>
+
+<script>
+/* ---------- DATA (transcribed from lab extracts) ---------- */
+const LAB = {"2024-10-24":"Clinipath","2025-03-10":"Clinipath","2025-03-23":"Clinipath","2025-04-04":"Clinipath","2025-05-27":"Clinipath","2025-06-27":"Clinipath","2025-10-07":"ACL","2025-10-13":"Clinipath","2025-11-05":"ACL","2025-12-05":"Metropolis","2026-01-06":"Metropolis","2026-02-04":"Clinipath","2026-03-02":"ACL","2026-03-03":"ACL","2026-03-30":"ACL","2026-05-01":"ACL","2026-06-02":"ACL","2026-06-25":"ACL"};
+const S=[
+{c:"Thyroid",t:"TSH",u:"mU/L",ref:"0.4 – 4.0",lo:.4,hi:4,ct:"0.4 – 2.5 (preconception)",clo:.4,chi:2.5,p:[["2024-10-24",5.06,"H"],["2025-03-10",6.12,"H"],["2025-05-27",4.15,"H"],["2025-06-27",2.24,""],["2025-10-13",0.02,"L"],["2025-11-05",0.17,"L"],["2025-12-05",5.72,"H"],["2026-01-06",4.79,"H"],["2026-02-04",2.10,""],["2026-03-03",2.59,""],["2026-05-01",3.14,""],["2026-06-02",0.88,""],["2026-06-25",1.10,""]]},
+{c:"Thyroid",t:"Free T4",u:"pmol/L",ref:"9–19 CP / 9–25 ACL",lo:9,hi:19,ct:"upper-normal preferred",p:[["2025-03-10",11,""],["2025-05-27",13,""],["2025-06-27",15,""],["2025-10-13",19,""],["2025-11-05",17.2,""],["2025-12-05",11.2,""],["2026-01-06",12.9,""],["2026-02-04",12,""],["2026-03-03",15.5,""],["2026-05-01",18.1,""],["2026-06-02",20.5,""]]},
+{c:"Thyroid",t:"Free T3",u:"pmol/L",ref:"3.0–5.5 CP / 3.5–6.5 ACL",lo:3,hi:5.5,p:[["2025-04-04",3.4,""],["2025-05-27",3.8,""],["2025-06-27",4.0,""],["2025-10-13",5.0,""],["2025-12-05",4.0,""],["2026-01-06",4.3,""],["2026-03-03",5.0,""],["2026-05-01",5.0,""],["2026-06-02",5.0,""]]},
+{c:"Thyroid",t:"TPO Antibodies",u:"IU/mL",ref:"<6",hi:6,p:[["2025-03-23",193.7,"H"],["2025-10-13",139.5,"H"]]},
+{c:"Thyroid",t:"Thyroglobulin Antibodies",u:"IU/mL",ref:"<4",hi:4,p:[["2025-03-23",50.8,"H"],["2025-10-13",30.4,"H"]]},
+{c:"Iron studies",t:"Ferritin",u:"µg/L",ref:"30 – 200",lo:30,hi:200,ct:"≥50 (preconception stores)",clo:50,chi:200,p:[["2024-10-24",17,"L"],["2025-03-10",26,"L"],["2025-03-23",25,"L"],["2025-10-07",58,""]]},
+{c:"Iron studies",t:"Iron",u:"µmol/L",ref:"5 – 30",lo:5,hi:30,p:[["2024-10-24",14,""],["2025-03-10",18,""],["2026-01-06",18.8,""]]},
+{c:"Iron studies",t:"Transferrin",u:"µmol/L",ref:"25 – 45",lo:25,hi:45,p:[["2024-10-24",45,""],["2025-03-10",39,""]]},
+{c:"Iron studies",t:"Transferrin saturation",u:"%",ref:"10 – 45",lo:10,hi:45,p:[["2024-10-24",16,""],["2025-03-10",23,""],["2026-01-06",34.7,""]]},
+{c:"Iron studies",t:"TIBC",u:"µg/dL",ref:"250 – 450",p:[["2026-01-06",303,""]]},
+{c:"Blood count",t:"Haemoglobin",u:"g/L",ref:"115 – 165",lo:115,hi:165,p:[["2024-10-24",128,""],["2025-03-10",134,""],["2025-03-23",135,""],["2025-10-07",137,""],["2026-01-06",145,""],["2026-03-03",135,""]]},
+{c:"Blood count",t:"MCV",u:"fL",ref:"80 – 100",lo:80,hi:100,p:[["2024-10-24",77,"L"],["2025-03-10",78,"L"],["2025-03-23",78,"L"],["2025-10-07",81,""],["2026-01-06",81.7,""],["2026-03-03",84,""]]},
+{c:"Blood count",t:"MCH",u:"pg",ref:"27 – 32 CP / 27–34 ACL",lo:27,hi:32,p:[["2024-10-24",25,"L"],["2025-03-10",25,"L"],["2025-03-23",25,"L"],["2025-10-07",27.2,""],["2026-01-06",28.0,""],["2026-03-03",26.8,"L"]]},
+{c:"Blood count",t:"Red cell count",u:"×10¹²/L",ref:"3.8 – 5.8",p:[["2024-10-24",5.2,""],["2025-03-10",5.4,""],["2025-10-07",5.04,""],["2026-01-06",5.18,""],["2026-03-03",5.04,""]]},
+{c:"Blood count",t:"Haematocrit",u:"",ref:"0.36 – 0.47",p:[["2024-10-24",0.40,""],["2025-03-10",0.42,""],["2025-10-07",0.41,""],["2026-01-06",0.42,""],["2026-03-03",0.42,""]]},
+{c:"Blood count",t:"MCHC",u:"g/L",ref:"310 – 360",p:[["2024-10-24",319,""],["2025-03-10",321,""],["2025-10-07",335,""],["2026-01-06",343,""],["2026-03-03",321,""]]},
+{c:"Blood count",t:"RDW",u:"%",ref:"10 – 15",p:[["2024-10-24",14.3,""],["2025-03-10",14.0,""],["2025-10-07",12.4,""],["2026-01-06",12.7,""],["2026-03-03",13.0,""]]},
+{c:"Blood count",t:"White cell count",u:"×10⁹/L",ref:"4.0 – 11.0",lo:4,hi:11,p:[["2024-10-24",8.1,""],["2025-03-10",7.0,""],["2025-10-07",8.8,""],["2026-01-06",6.6,""],["2026-03-03",7.2,""]]},
+{c:"Blood count",t:"Neutrophils",u:"×10⁹/L",ref:"2.0 – 7.5/8.0",p:[["2024-10-24",4.5,""],["2025-03-10",3.7,""],["2025-10-07",4.8,""],["2026-01-06",4.2,""],["2026-03-03",4.0,""]]},
+{c:"Blood count",t:"Lymphocytes",u:"×10⁹/L",ref:"1.0/1.2 – 4.0",p:[["2024-10-24",2.5,""],["2025-03-10",2.3,""],["2025-10-07",2.5,""],["2026-01-06",2.0,""],["2026-03-03",2.2,""]]},
+{c:"Blood count",t:"Monocytes",u:"×10⁹/L",ref:"0.2 – 1.0 / <1.1",p:[["2024-10-24",0.6,""],["2025-03-10",0.4,""],["2025-10-07",0.7,""],["2026-01-06",0.3,""],["2026-03-03",0.5,""]]},
+{c:"Blood count",t:"Eosinophils",u:"×10⁹/L",ref:"0 – 0.5 / <0.7",p:[["2024-10-24",0.5,""],["2025-03-10",0.5,""],["2025-10-07",0.7,"H"],["2026-01-06",0.07,""],["2026-03-03",0.5,""]]},
+{c:"Blood count",t:"Basophils",u:"×10⁹/L",ref:"0 – 0.1 / <0.3",p:[["2024-10-24","<0.1",""],["2025-03-10","<0.1",""],["2025-10-07","<0.1",""],["2026-01-06",0,""],["2026-03-03","<0.1",""]]},
+{c:"Blood count",t:"Platelets",u:"×10⁹/L",ref:"150 – 400/450",lo:150,hi:400,p:[["2024-10-24",280,""],["2025-03-10",336,""],["2025-10-07",289,""],["2026-01-06",348,""],["2026-03-03",328,""]]},
+{c:"Blood count",t:"MPV",u:"fL",ref:"7.1–11.2 / 8.8–12.7",p:[["2025-10-07",10.6,""],["2026-01-06",9.2,""],["2026-03-03",10.1,""]]},
+{c:"Haemoglobinopathy",t:"Hb A2",u:"%",ref:"2.2 – 3.2",p:[["2025-03-23",2.3,""]]},
+{c:"Haemoglobinopathy",t:"Hb F",u:"%",ref:"0.0 – 0.5",p:[["2025-03-23","<0.5",""]]},
+{c:"Haemoglobinopathy",t:"Hb Electrophoresis",u:"",ref:"—",p:[["2025-03-23","Abnormal bands not seen",""]]},
+{c:"Vitamins",t:"Vitamin D (25-OH)",u:"nmol/L",ref:"50 – 150/200",lo:50,hi:150,ct:"≥75 (preconception)",clo:75,chi:250,p:[["2024-10-24",32,"L"],["2025-10-07",55,""],["2026-01-06",66.6,""]]},
+{c:"Vitamins",t:"Vitamin B12",u:"pmol/L",ref:"139 – 651",ct:"≥220 (preconception)",clo:220,p:[["2024-10-24",188,""],["2026-01-06",202,""]]},
+{c:"Vitamins",t:"Active B12",u:"pmol/L",ref:"23 – 100",p:[["2024-10-24",39,""]]},
+{c:"Vitamins",t:"Folate",u:"µg/L",ref:">3.8",ct:"replete + folic acid supp.",p:[["2024-10-24",10.6,""]]},
+{c:"Lipids",t:"Cholesterol",u:"mmol/L",ref:"<5.0",p:[["2024-10-24",5.2,"H"],["2026-01-06",4.2,""]]},
+{c:"Lipids",t:"Triglyceride",u:"mmol/L",ref:"<2.0",p:[["2024-10-24",0.9,""],["2026-01-06",0.77,""]]},
+{c:"Lipids",t:"HDL",u:"mmol/L",ref:">1.0",p:[["2024-10-24",1.0,"L"],["2026-01-06",0.9,"L"]]},
+{c:"Lipids",t:"Chol/HDL ratio",u:"",ref:"<3.5",p:[["2024-10-24",5.2,"H"],["2026-01-06",4.66,"H"]]},
+{c:"Lipids",t:"LDL",u:"mmol/L",ref:"<3.0",p:[["2024-10-24",3.8,"H"],["2026-01-06",3.0,""]]},
+{c:"Lipids",t:"Non-HDL",u:"mmol/L",ref:"<3.9",p:[["2024-10-24",4.2,"H"],["2026-01-06",3.3,""]]},
+{c:"Lipids",t:"Apolipoprotein A1",u:"mg/dL",ref:"108 – 225",p:[["2026-01-06",114,""]]},
+{c:"Lipids",t:"Apolipoprotein B",u:"mg/dL",ref:"60 – 117",p:[["2026-01-06",95,""]]},
+{c:"Lipids",t:"Apo B/A1 ratio",u:"",ref:"0.30 – 0.90",p:[["2026-01-06",0.83,""]]},
+{c:"Hormones & fertility",t:"Prolactin",u:"mIU/L",ref:"<425",hi:425,ct:"well within <425 (ovulation)",chi:425,p:[["2024-10-24",741,"H"],["2025-03-10",333,""],["2026-01-06",774,"H"]]},
+{c:"Hormones & fertility",t:"Progesterone",u:"nmol/L",ref:"luteal >6",lo:6,ct:"mid-luteal ≥30 (ovulation)",clo:30,p:[["2024-10-24",23.5,""],["2025-03-23",36.5,""]]},
+{c:"Hormones & fertility",t:"FSH",u:"U/L",ref:"luteal 2 – 10",p:[["2024-10-24",1,""],["2026-01-06",7.55,""]]},
+{c:"Hormones & fertility",t:"LH",u:"U/L",ref:"luteal 2 – 8",p:[["2024-10-24",2,""]]},
+{c:"Hormones & fertility",t:"Oestradiol",u:"pmol/L",ref:"luteal 350 – 800",p:[["2024-10-24",587,""]]},
+{c:"Hormones & fertility",t:"AMH",u:"pmol/L",ref:"6.8 – 47.8",p:[["2024-10-24",13.0,""],["2026-01-06",12.3,""]]},
+{c:"Hormones & fertility",t:"hCG",u:"IU/L",ref:"<5 negative",p:[["2026-03-02","<2",""],["2026-03-30","<2",""]]},
+{c:"Kidney & electrolytes",t:"Urea",u:"mmol/L",ref:"2.5 – 7.0",p:[["2024-10-24",3.3,""],["2026-01-06",3.4,""]]},
+{c:"Kidney & electrolytes",t:"Creatinine",u:"µmol/L",ref:"45 – 85",p:[["2024-10-24",60,""],["2026-01-06",55,""]]},
+{c:"Kidney & electrolytes",t:"eGFR",u:"mL/min/1.73m²",ref:">59",p:[["2024-10-24",">90",""]]},
+{c:"Kidney & electrolytes",t:"Sodium",u:"mmol/L",ref:"135 – 145",p:[["2024-10-24",138,""],["2026-01-06",137,""]]},
+{c:"Kidney & electrolytes",t:"Potassium",u:"mmol/L",ref:"3.5 – 5.5",p:[["2024-10-24",4.5,""],["2026-01-06",5.0,""]]},
+{c:"Kidney & electrolytes",t:"Chloride",u:"mmol/L",ref:"95 – 110",p:[["2024-10-24",106,""],["2026-01-06",102,""]]},
+{c:"Kidney & electrolytes",t:"Bicarbonate",u:"mmol/L",ref:"20 – 32",p:[["2024-10-24",23,""]]},
+{c:"Kidney & electrolytes",t:"Uric acid",u:"mg/dL",ref:"2.6 – 6.0",hi:6.0,p:[["2026-01-06",6.3,"H"]]},
+{c:"Kidney & electrolytes",t:"Calcium",u:"mg/dL",ref:"8.4 – 10.2",p:[["2026-01-06",9.0,""]]},
+{c:"Kidney & electrolytes",t:"Phosphorus",u:"mg/dL",ref:"2.3 – 4.7",p:[["2026-01-06",4.1,""]]},
+{c:"Liver",t:"AST",u:"U/L",ref:"10 – 35",p:[["2024-10-24",19,""],["2026-01-06",17,""]]},
+{c:"Liver",t:"ALT",u:"U/L",ref:"5 – 30",p:[["2024-10-24",15,""],["2026-01-06",14,""]]},
+{c:"Liver",t:"Alk Phos",u:"U/L",ref:"30 – 110",p:[["2024-10-24",60,""],["2026-01-06",56,""]]},
+{c:"Liver",t:"Gamma GT",u:"U/L",ref:"5 – 35",p:[["2024-10-24",18,""],["2026-01-06",13,""]]},
+{c:"Liver",t:"Total Bilirubin",u:"µmol/L",ref:"3 – 15",p:[["2024-10-24",6,""],["2026-01-06",7,""]]},
+{c:"Liver",t:"Total Protein",u:"g/L",ref:"64 – 81",p:[["2024-10-24",73,""],["2026-01-06",70,""]]},
+{c:"Liver",t:"Albumin",u:"g/L",ref:"35 – 46",p:[["2024-10-24",42,""],["2026-01-06",47,""]]},
+{c:"Liver",t:"Globulin",u:"g/L",ref:"23 – 39",p:[["2024-10-24",31,""],["2026-01-06",23,""]]},
+{c:"Metabolic & glucose",t:"Glucose (fasting)",u:"mg/dL",ref:"70 – 99",hi:99,p:[["2026-01-06",102,"H"]]},
+{c:"Metabolic & glucose",t:"Glucose (post-prandial)",u:"mg/dL",ref:"70 – 140",hi:140,p:[["2026-01-06",109,""]]},
+{c:"Metabolic & glucose",t:"HbA1c",u:"%",ref:"≤5.6",hi:5.6,p:[["2026-01-06",5.3,""]]},
+{c:"Metabolic & glucose",t:"Est. avg glucose",u:"mg/dL",ref:"—",p:[["2026-01-06",105,""]]},
+{c:"Inflammation",t:"CRP",u:"mg/L",ref:"<5.0",hi:5.0,p:[["2026-01-06",5.75,"H"]]},
+{c:"Inflammation",t:"HsCRP",u:"mg/L",ref:"<3.0 (CV risk)",hi:3.0,p:[["2026-01-06",5.21,"H"]]},
+{c:"Inflammation",t:"ESR",u:"mm/hr",ref:"0 – 20",hi:20,p:[["2026-01-06",18,""]]},
+{c:"Muscle & tumour markers",t:"CPK Total",u:"U/L",ref:"<170",hi:170,p:[["2026-01-06",70,""]]},
+{c:"Muscle & tumour markers",t:"LDH",u:"U/L",ref:"0 – 250",hi:250,p:[["2026-01-06",174,""]]},
+{c:"Muscle & tumour markers",t:"CEA",u:"ng/mL",ref:"<3.0",hi:3.0,p:[["2026-01-06",1.96,""]]}
+];
+
+const EVENTS=[
+{d:"24 Oct 2024",warn:1,t:"Baseline screen flags five issues",x:"First comprehensive panel: TSH high (5.06), ferritin low (17), vitamin D deficient (32), LDL high (3.8), prolactin high (741). Kidney, liver, B12 and folate all normal."},
+{d:"10 Mar 2025",warn:1,t:"Preconception check — TSH climbs",x:"Clinical note reads \"trying to get pregnant.\" TSH now 6.12 and iron stores still low. Prolactin has normalised on its own (333)."},
+{d:"23 Mar 2025",warn:1,t:"Hashimoto's pattern confirmed, thalassaemia excluded",x:"TPO antibodies 193.7 (ref <6) and thyroglobulin antibodies 50.8 (ref <4) — the picture labs describe as autoimmune thyroid disease. Normal Hb electrophoresis rules out thalassaemia; low MCV is attributed to iron deficiency."},
+{d:"May – Jun 2025",t:"TSH drifts back toward range",x:"Progress testing: TSH 4.15 (May) then 2.24 (June), with free T4 and T3 mid-range."},
+{d:"7 – 13 Oct 2025",warn:1,t:"Iron & vitamin D fixed — but thyroid swings the other way",x:"Ferritin now 58 and vitamin D 55 (both normal); MCV back in range at 81. But TSH is fully suppressed at 0.02 with free T4 at the top of range — an overactive phase — and antibodies remain positive (TPO 139.5, Tg 30.4)."},
+{d:"5 Dec 2025 – 6 Jan 2026",warn:1,t:"Testing in India — TSH high again, first full-body screen",x:"Two Metropolis (Ahmednagar) draws: TSH back above range at 5.72 then 4.79 with normal free hormones — a subclinical-hypothyroid relapse the lab linked to possible intermittent thyroxine. The Jan 6 panel is her first comprehensive screen: it re-flags prolactin high (774), vitamin D still low (67) and B12 low-normal (202), newly flags impaired fasting glucose (102), mildly high uric acid (6.3) and raised CRP/HsCRP, reclassifies AMH as age-'low', but shows improved lipids and normal liver/kidney/HbA1c/urine."},
+{d:"4 Feb 2026",t:"Back on target",x:"Clinipath (Australia) again: TSH 2.10, free T4 12 — described as euthyroid, \"On thyroxine.\" The Dec–Jan high-TSH stretch has resolved. Two doctors received identical copies of this result."},
+{d:"Mar – Jun 2026",t:"Stable on treatment — mostly on the conception target",x:"Four thyroid panels (TSH 2.59 → 3.14 → 0.88 → 1.10). All within the lab's general range, but 2.59 and 3.14 sit above the tighter &lt;2.5 preconception target before the last two land back on it. hCG negative on 2 Mar and 30 Mar. Mar FBC normal apart from marginally low MCH, iron studies noted pending."}
+];
+
+const WATCH=[
+{p:"r",t:"Keep TSH under the &lt;2.5 conception target — it has wobbled",x:"With positive thyroid antibodies and trying to conceive, guidance commonly targets TSH &lt;2.5 mU/L. It relapsed to 5.72 (Dec 2025) and 4.79 (Jan 2026) — the Indian lab flagged possible intermittent thyroxine — then recovered, but Mar (2.59) and May (3.14) also sat above target. Latest 1.10 (Jun) is on target. Consistent dosing and a firm monitoring cadence are the single most important thing to confirm with the clinic. This data can't set the dose."},
+{p:"r",t:"Prolactin high again — can affect ovulation",x:"After being high (741, Oct 2024) then normal (333, Mar 2025), prolactin is elevated again at ~774 mIU/L (36.5 ng/mL, Jan 2026). High prolactin can interfere with ovulation. The lab called it 'mild excess' (often stress/exercise) and advised a repeat after a month — worth doing since it has now recurred twice."},
+{p:"r",t:"AMH reclassified as age-'low' — discuss reserve & timing",x:"AMH is numerically stable (13.0 → 12.3 pmol/L) but the Jan 2026 lab graded 1.72 ng/mL 'Low' for her age, with an anticipated antral follicle count of 4–10 and reduced expected IVF response. Given she's trying to conceive, this is worth an explicit conversation with the fertility team about reserve and timeline."},
+{p:"y",t:"Iron stores — still no ferritin since Oct 2025",x:"Circulating iron looks fine in Jan 2026 (iron 18.8, saturation 34.7%, normal film) but ferritin — the stores marker, preconception target ≥50 — wasn't repeated. Last was 58 (Oct 2025). A current ferritin closes this out."},
+{p:"y",t:"Impaired fasting glucose — recheck fasting glucose",x:"Fasting glucose 102 mg/dL (Jan 2026) is just into the impaired-fasting band (100–125). Reassuringly HbA1c is normal (5.3%) and post-meal glucose fine (109), so this reads as an isolated value — but a repeat fasting glucose would confirm."},
+{p:"y",t:"Raised CRP/HsCRP — repeat when well",x:"CRP 5.75 and HsCRP 5.21 (Jan 2026) are both above range, HsCRP in the higher-cardiovascular-risk band. The lab cautions HsCRP is unreliable during any infection or inflammation, so a calm-state repeat is needed before it means anything. Mildly high uric acid (6.3) noted alongside."},
+{p:"y",t:"Vitamin D &amp; B12 — improving but still below conception targets",x:"Vitamin D 32 → 55 → 67 nmol/L (below ≥75) and B12 188 → 202 pmol/L (below ≥220). Both trending the right way; worth continuing to top up toward the preconception targets."},
+{p:"g",t:"Lipids — improved on treatment",x:"The Jan 2026 panel (chol 4.2, LDL 3.0, non-HDL 3.3, ApoB/A1 0.83) is much better than the pre-thyroxine Oct 2024 one. Low HDL (0.9) remains the one lingering flag."}
+];
+
+/* ---------- helpers ---------- */
+const fmtD=iso=>{const d=new Date(iso);return d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"2-digit"})};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function cflag(s,v){
+  if(typeof v!=="number")return null;
+  if(s.clo==null&&s.chi==null)return null;
+  if(s.chi!=null&&v>s.chi)return"H";
+  if(s.clo!=null&&v<s.clo)return"L";
+  return"";
+}
+const eflag=(s,v,labf)=>{const cf=cflag(s,v);return cf===null?labf:cf;};
+
+(()=>{const b=new Date(1993,10,11),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),10,11))a--;document.getElementById("age").textContent=a+" y";})();
+
+const SNAP=[["TSH","Thyroid"],["Free T4","Thyroid"],["Ferritin","Iron studies"],["Vitamin D (25-OH)","Vitamins"],["Vitamin B12","Vitamins"],["Haemoglobin","Blood count"],["MCV","Blood count"],["LDL","Lipids"],["Prolactin","Hormones & fertility"],["hCG","Hormones & fertility"],["Glucose (fasting)","Metabolic & glucose"],["HbA1c","Metabolic & glucose"],["Uric acid","Kidney & electrolytes"],["HsCRP","Inflammation"]];
+const STALE_MONTHS=9;
+function snap(){
+  const el=document.getElementById("snapcards");el.innerHTML="";
+  const now=new Date("2026-07-05");
+  SNAP.forEach(([t,c])=>{
+    const s=S.find(x=>x.t===t&&x.c===c);if(!s)return;
+    const [d,v,f]=s.p[s.p.length-1];
+    const ef=eflag(s,v,f);
+    const months=(now-new Date(d))/2629800000;
+    let pill=ef==="H"?'<span class="pill hi">ABOVE TARGET</span>':ef==="L"?'<span class="pill lo">BELOW TARGET</span>':'<span class="pill ok">On target</span>';
+    if(months>STALE_MONTHS)pill+=' <span class="pill stale">retest?</span>';
+    const tgt=s.ct?`target ${s.ct}`:`ref ${s.ref}`;
+    el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">${fmtD(d)} · ${tgt}</div></div>`);
+  });
+}
+(()=>{const el=document.getElementById("lipidcards");
+["Cholesterol","LDL","HDL","Chol/HDL ratio","Non-HDL","Triglyceride"].forEach(t=>{const s=S.find(x=>x.c==="Lipids"&&x.t===t);if(!s)return;
+const[d,v,f]=s.p[s.p.length-1];
+const pill=f==="H"?'<span class="pill hi">HIGH</span>':f==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
+el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${s.t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">${fmtD(d)} · ref ${s.ref}</div></div>`);});})();
+(()=>{const el=document.getElementById("metcards");
+[["Glucose (fasting)","Metabolic & glucose"],["Glucose (post-prandial)","Metabolic & glucose"],["HbA1c","Metabolic & glucose"],["Uric acid","Kidney & electrolytes"],["Calcium","Kidney & electrolytes"],["CRP","Inflammation"],["HsCRP","Inflammation"],["ESR","Inflammation"]].forEach(([t,c])=>{const s=S.find(x=>x.c===c&&x.t===t);if(!s)return;
+const[d,v,f]=s.p[s.p.length-1];
+const pill=f==="H"?'<span class="pill hi">HIGH</span>':f==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
+el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">ref ${s.ref}</div></div>`);});})();
+
+(()=>{const el=document.getElementById("timeline");
+EVENTS.forEach(e=>el.insertAdjacentHTML("beforeend",`<div class="tle${e.warn?" warn":""}"><div class="td">${e.d}</div><div class="tt">${e.t}</div><div class="tx">${e.x}</div></div>`));})();
+
+(()=>{const el=document.getElementById("watchitems");
+WATCH.forEach(w=>el.insertAdjacentHTML("beforeend",`<div class="wi"><div class="dot ${w.p}"></div><div><b>${w.t}</b><p>${w.x}</p></div></div>`));})();
+
+let charts=[];
+const bandPlugin={id:"band",beforeDraw(ch,args,opts){if(opts.lo==null&&opts.hi==null)return;
+const{ctx,chartArea:a,scales:{y}}=ch;if(!a)return;
+const top=opts.hi!=null?y.getPixelForValue(opts.hi):a.top, bot=opts.lo!=null?y.getPixelForValue(opts.lo):a.bottom;
+ctx.save();ctx.fillStyle=css("--band");ctx.fillRect(a.left,Math.max(top,a.top),a.width,Math.min(bot,a.bottom)-Math.max(top,a.top));ctx.restore();}};
+Chart.register(bandPlugin);
+
+function series(name,cat,color,dash){
+  const s=S.find(x=>x.t===name&&x.c===cat);
+  return {label:name,data:s.p.filter(p=>typeof p[1]==="number").map(p=>({x:new Date(p[0]).getTime(),y:p[1],f:eflag(s,p[1],p[2])})),
+    borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:4,pointHoverRadius:5,tension:.3,borderDash:dash||[],
+    pointBackgroundColor:ctx=>{const f=ctx.raw&&ctx.raw.f;return f==="H"?css("--high"):f==="L"?css("--low"):color},
+    pointBorderColor:ctx=>{const f=ctx.raw&&ctx.raw.f;return f==="H"?css("--high"):f==="L"?css("--low"):color}};
+}
+const XMIN=new Date("2024-09-15").getTime(),XMAX=new Date("2026-08-01").getTime();
+function mk(id,datasets,band,yopts={}){
+  const c=document.getElementById(id);if(!c)return;
+  charts.push(new Chart(c,{type:"line",data:{datasets},options:{
+    maintainAspectRatio:false,responsive:true,
+    interaction:{mode:"nearest",intersect:false},
+    plugins:{band,legend:{display:datasets.length>1,labels:{color:css("--ink2"),boxWidth:14,boxHeight:2,font:{size:11}}},
+      tooltip:{callbacks:{title:items=>fmtD(new Date(items[0].parsed.x).toISOString()),
+        label:i=>`${i.dataset.label}: ${i.parsed.y}${i.raw.f?" ("+(i.raw.f==="H"?"above target":"below target")+")":""}`}}},
+    scales:{x:{type:"linear",min:XMIN,max:XMAX,grid:{display:false},border:{color:css("--line")},
+        ticks:{color:css("--ink3"),font:{size:10.5},maxTicksLimit:8,callback:v=>new Date(v).toLocaleDateString("en-AU",{month:"short",year:"2-digit"})}},
+      y:{grid:{color:css("--line")},border:{display:false},ticks:{color:css("--ink3"),font:{size:10.5}},...yopts}}}}));
+}
+function drawAll(){
+  charts.forEach(c=>c.destroy());charts=[];
+  const A=css("--accent"),A2=css("--low"),A3=css("--high");
+  mk("c_tsh",[series("TSH","Thyroid",A)],{lo:.4,hi:2.5},{min:0,max:6.5});
+  mk("c_ft4",[series("Free T4","Thyroid",A)],{lo:9,hi:19},{min:8,max:22});
+  mk("c_ft3",[series("Free T3","Thyroid",A)],{lo:3,hi:5.5},{min:2.5,max:6});
+  mk("c_ab",[series("TPO Antibodies","Thyroid",A3),series("Thyroglobulin Antibodies","Thyroid",A2)],{lo:0,hi:6},{min:0,max:210});
+  mk("c_fer",[series("Ferritin","Iron studies",A)],{lo:50,hi:200},{min:0,max:100});
+  mk("c_mcv",[series("MCV","Blood count",A)],{lo:80,hi:100},{min:74,max:90});
+  mk("c_mch",[series("MCH","Blood count",A)],{lo:27,hi:32},{min:23,max:30});
+  mk("c_hb",[series("Haemoglobin","Blood count",A)],{lo:115,hi:165},{min:110,max:150});
+  mk("c_iron",[series("Iron","Iron studies",A),series("Transferrin saturation","Iron studies",A2,[4,3])],{lo:5,hi:30},{min:0,max:50});
+  mk("c_plt",[series("Platelets","Blood count",A),series("White cell count","Blood count",A2,[4,3])],null,{});
+  mk("c_vitd",[series("Vitamin D (25-OH)","Vitamins",A)],{lo:75,hi:150},{min:20,max:90});
+  mk("c_prl",[series("Prolactin","Hormones & fertility",A)],{lo:0,hi:425},{min:0,max:800});
+  mk("c_prog",[series("Progesterone","Hormones & fertility",A)],{lo:30,hi:null},{min:0,max:45});
+}
+
+const ROWS=[];
+S.forEach(s=>s.p.forEach(([d,v,f])=>ROWS.push({d,c:s.c,t:s.t,v,u:s.u,ref:s.ct?s.ct:s.ref,f:eflag(s,v,f),lab:LAB[d]||""})));
+ROWS.sort((a,b)=>b.d.localeCompare(a.d)||a.c.localeCompare(b.c));
+(()=>{const sel=document.getElementById("catf");
+[...new Set(S.map(s=>s.c))].forEach(c=>sel.insertAdjacentHTML("beforeend",`<option>${c}</option>`));})();
+function renderTable(){
+  const q=document.getElementById("q").value.toLowerCase(),cat=document.getElementById("catf").value,fo=document.getElementById("flagonly").checked;
+  const tb=document.getElementById("tbody");tb.innerHTML="";
+  let n=0;
+  ROWS.forEach(r=>{
+    if(cat&&r.c!==cat)return;if(fo&&!r.f)return;
+    if(q&&!(r.t.toLowerCase().includes(q)||r.c.toLowerCase().includes(q)))return;
+    n++;
+    tb.insertAdjacentHTML("beforeend",`<tr><td>${fmtD(r.d)}</td><td>${r.c}</td><td>${r.t}</td><td class="${r.f?("f"+r.f):""}"><span class="${r.f?("f"+r.f):""}">${r.v}</span></td><td>${r.u}</td><td>${r.ref}</td><td>${r.f==="H"?'<span class="fH">▲ Above</span>':r.f==="L"?'<span class="fL">▼ Below</span>':""}</td><td>${r.lab}</td></tr>`);
+  });
+  document.getElementById("rowcount").textContent=n+" results shown · "+ROWS.length+" total on record";
+}
+
+(()=>{const tb=document.getElementById("printlatest");
+SNAP.forEach(([t,c])=>{const s=S.find(x=>x.t===t&&x.c===c);if(!s)return;const[d,v,f]=s.p[s.p.length-1];
+const ef=eflag(s,v,f);
+tb.insertAdjacentHTML("beforeend",`<tr><td>${t}${ef?" ("+(ef==="H"?"above target":"below target")+")":""}</td><td>${v} ${s.u}</td><td>${s.ct?s.ct:s.ref}</td><td>${fmtD(d)}</td></tr>`);});})();
+
+function toggleTheme(){
+  const h=document.documentElement,dark=h.getAttribute("data-theme")==="dark";
+  h.setAttribute("data-theme",dark?"light":"dark");
+  document.getElementById("themebtn").textContent=dark?"Dark":"Light";
+  drawAll();
+}
+snap();renderTable();drawAll();
+</script>
+</body>
+</html>
