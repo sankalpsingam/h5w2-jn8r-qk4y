@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Adwaita Desai — Health Dashboard</title>
+<script>
+/* set theme before first paint to avoid a flash */
+(function(){try{var t=localStorage.getItem("ad_theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
@@ -103,6 +107,50 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
   #printview ul{margin:4px 0 4px 18px;font-size:11px}
   #printview li{margin-bottom:3px}
 }
+/* ---- add-data / modal / toast ---- */
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:40px 16px}
+.modal-back.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:16px;width:100%;max-width:720px;box-shadow:0 12px 40px rgba(0,0,0,.25);margin:auto}
+.modal-h{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal-h h3{font-size:15px;font-weight:650;flex:1}
+.modal-x{border:none;background:none;color:var(--ink2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.modal-b{padding:18px 20px}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.tab{font-size:13px;color:var(--ink2);background:none;border:none;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer;margin-bottom:-1px}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tabpane{display:none}.tabpane.on{display:block}
+.frow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
+.fld label{font-size:11.5px;color:var(--ink2);font-weight:600}
+.fld input,.fld select,.fld textarea{font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);outline:none;font-family:inherit}
+.fld input:focus,.fld select:focus,.fld textarea:focus,.controls input:focus,.controls select:focus{border-color:var(--accent)}
+.fld textarea{resize:vertical;min-height:150px;line-height:1.5}
+.hint{font-size:11.5px;color:var(--ink3);margin:2px 0 10px}
+.btn-pri{font-size:13px;background:var(--accent);color:#fff;border:none;padding:9px 18px;border-radius:9px;cursor:pointer;font-weight:600}
+.btn-pri:hover{filter:brightness(1.06)}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{font-size:13px;background:var(--card);color:var(--ink2);border:1px solid var(--line);padding:9px 16px;border-radius:9px;cursor:pointer}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.modal-f{display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:14px 20px;border-top:1px solid var(--line)}
+.modal-f .msg{flex:1;font-size:12.5px;color:var(--ink2)}
+.rev{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.rev th{position:static;text-transform:none;letter-spacing:0;font-size:11px;padding:6px 8px}
+.rev td{padding:4px 6px;border-bottom:1px solid var(--line)}
+.rev input[type=text]{width:100%;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.rev .new{color:var(--accent);font-size:10.5px;font-weight:600}
+.rev .unk{color:var(--ink3);font-size:10.5px}
+.userlist{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto}
+.uitem{display:flex;gap:10px;align-items:center;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
+.uitem .g{flex:1}.uitem .del{color:var(--high);cursor:pointer;border:none;background:none;font-size:12px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);font-size:13px;padding:11px 20px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:200}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.menu{position:relative;display:inline-block}
+.menu-list{position:absolute;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:4px;min-width:170px;z-index:30;display:none}
+.menu-list.open{display:block}
+.menu-list button{display:block;width:100%;text-align:left;font-size:12.5px;color:var(--ink);background:none;border:none;padding:7px 10px;border-radius:7px;cursor:pointer}
+.menu-list button:hover{background:var(--accent-soft);color:var(--accent)}
+.badge{display:inline-block;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:9px;padding:1px 6px;margin-left:5px}
+@media print{.modal-back,.toast{display:none!important}}
 </style>
 </head>
 <body>
@@ -117,8 +165,19 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
     <nav>
       <a href="#snapshot">Snapshot</a><a href="#journey">Journey</a><a href="#trends">Trends</a><a href="#watchlist">Watch list</a><a href="#alldata">All results</a>
     </nav>
+    <button class="btn" onclick="openAdd()">+ Add data<span class="badge" id="ucount" style="display:none"></span></button>
+    <div class="menu">
+      <button class="btn" onclick="toggleMenu(event)">Data ▾</button>
+      <div class="menu-list" id="datamenu">
+        <button onclick="openAdd('manage')">Manage added results</button>
+        <button onclick="exportJSON()">Export data (JSON)</button>
+        <button onclick="exportCSV()">Export table (CSV)</button>
+        <button onclick="document.getElementById('importfile').click()">Import JSON…</button>
+      </div>
+    </div>
     <button class="btn" onclick="window.print()">Print doctor summary</button>
     <button class="btn" id="themebtn" onclick="toggleTheme()">Dark</button>
+    <input type="file" id="importfile" accept="application/json,.json" style="display:none" onchange="importJSON(this)">
   </div>
 </header>
 
@@ -230,10 +289,81 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
   </ul>
 </div>
 
+<!-- ADD-DATA MODAL -->
+<div class="modal-back" id="addback" onclick="if(event.target===this)closeAdd()">
+  <div class="modal">
+    <div class="modal-h">
+      <h3>Add lab data</h3>
+      <button class="modal-x" onclick="closeAdd()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-b">
+      <div class="tabs">
+        <button class="tab on" data-tab="manual" onclick="switchTab('manual')">Manual entry</button>
+        <button class="tab" data-tab="scan" onclick="switchTab('scan')">Scan a report</button>
+        <button class="tab" data-tab="manage" onclick="switchTab('manage')">Added results</button>
+      </div>
+
+      <!-- MANUAL -->
+      <div class="tabpane on" id="pane-manual">
+        <div class="frow">
+          <div class="fld"><label>Collection date</label><input type="date" id="m_date"></div>
+          <div class="fld"><label>Lab</label><input type="text" id="m_lab" list="dl_labs" placeholder="Clinipath…"></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Category</label><input type="text" id="m_cat" list="dl_cats" placeholder="e.g. Thyroid" oninput="onTestPick()"></div>
+          <div class="fld"><label>Test</label><input type="text" id="m_test" list="dl_tests" placeholder="e.g. TSH" oninput="onTestPick()"></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Result</label><input type="text" id="m_val" placeholder="e.g. 2.1 or <2"></div>
+          <div class="fld"><label>Unit</label><input type="text" id="m_unit" placeholder="mU/L"></div>
+          <div class="fld"><label>Reference range</label><input type="text" id="m_ref" placeholder="0.4 – 4.0"></div>
+          <div class="fld" style="max-width:130px"><label>Flag</label>
+            <select id="m_flag"><option value="auto">Auto</option><option value="">Normal</option><option value="H">High / above</option><option value="L">Low / below</option></select>
+          </div>
+        </div>
+        <p class="hint" id="m_hint">Pick an existing test to auto-fill its unit &amp; range, or type a new test name to start tracking it.</p>
+      </div>
+
+      <!-- SCAN -->
+      <div class="tabpane" id="pane-scan">
+        <div class="frow">
+          <div class="fld" style="flex:1 1 100%"><label>Paste the report text (or drop / choose a .txt / .csv file)</label>
+            <textarea id="s_text" placeholder="Paste everything from the lab report here — test names, values, units and reference ranges. The scanner matches known tests and pulls out values for you to review before anything is saved."></textarea>
+          </div>
+        </div>
+        <div class="frow" style="align-items:flex-end">
+          <div class="fld" style="max-width:190px"><label>Report date (fallback)</label><input type="date" id="s_date"></div>
+          <div class="fld" style="max-width:170px"><label>Lab (optional)</label><input type="text" id="s_lab" list="dl_labs" placeholder="Auto-detect"></div>
+          <div class="fld" style="max-width:150px"><label>&nbsp;</label><input type="file" id="s_file" accept=".txt,.csv,text/plain" onchange="loadScanFile(this)" style="padding:6px"></div>
+          <div class="fld" style="flex:0"><label>&nbsp;</label><button class="btn-ghost" onclick="runScan()">Scan text →</button></div>
+        </div>
+        <p class="hint">Works on any pasted lab text — it keys off known test names and numbers, then lets you confirm every row. Nothing is saved until you press “Ingest”. PDFs/images: copy the text out first (or open the PDF and select-all → copy).</p>
+        <div id="scanresult"></div>
+      </div>
+
+      <!-- MANAGE -->
+      <div class="tabpane" id="pane-manage">
+        <p class="hint" id="manage_hint"></p>
+        <div class="userlist" id="userlist"></div>
+      </div>
+
+    </div>
+    <div class="modal-f">
+      <div class="msg" id="addmsg"></div>
+      <button class="btn-ghost" onclick="closeAdd()">Close</button>
+      <button class="btn-pri" id="addsave" onclick="saveManual()">Add result</button>
+    </div>
+  </div>
+</div>
+<datalist id="dl_cats"></datalist>
+<datalist id="dl_tests"></datalist>
+<datalist id="dl_labs"></datalist>
+<div class="toast" id="toast"></div>
+
 <script>
 /* ---------- DATA (transcribed from lab extracts) ---------- */
-const LAB = {"2024-10-24":"Clinipath","2025-03-10":"Clinipath","2025-03-23":"Clinipath","2025-04-04":"Clinipath","2025-05-27":"Clinipath","2025-06-27":"Clinipath","2025-10-07":"ACL","2025-10-13":"Clinipath","2025-11-05":"ACL","2025-12-05":"Metropolis","2026-01-06":"Metropolis","2026-02-04":"Clinipath","2026-03-02":"ACL","2026-03-03":"ACL","2026-03-30":"ACL","2026-05-01":"ACL","2026-06-02":"ACL","2026-06-25":"ACL"};
-const S=[
+const BASE_LAB = {"2024-10-24":"Clinipath","2025-03-10":"Clinipath","2025-03-23":"Clinipath","2025-04-04":"Clinipath","2025-05-27":"Clinipath","2025-06-27":"Clinipath","2025-10-07":"ACL","2025-10-13":"Clinipath","2025-11-05":"ACL","2025-12-05":"Metropolis","2026-01-06":"Metropolis","2026-02-04":"Clinipath","2026-03-02":"ACL","2026-03-03":"ACL","2026-03-30":"ACL","2026-05-01":"ACL","2026-06-02":"ACL","2026-06-25":"ACL"};
+const BASE_S=[
 {c:"Thyroid",t:"TSH",u:"mU/L",ref:"0.4 – 4.0",lo:.4,hi:4,ct:"0.4 – 2.5 (preconception)",clo:.4,chi:2.5,p:[["2024-10-24",5.06,"H"],["2025-03-10",6.12,"H"],["2025-05-27",4.15,"H"],["2025-06-27",2.24,""],["2025-10-13",0.02,"L"],["2025-11-05",0.17,"L"],["2025-12-05",5.72,"H"],["2026-01-06",4.79,"H"],["2026-02-04",2.10,""],["2026-03-03",2.59,""],["2026-05-01",3.14,""],["2026-06-02",0.88,""],["2026-06-25",1.10,""]]},
 {c:"Thyroid",t:"Free T4",u:"pmol/L",ref:"9–19 CP / 9–25 ACL",lo:9,hi:19,ct:"upper-normal preferred",p:[["2025-03-10",11,""],["2025-05-27",13,""],["2025-06-27",15,""],["2025-10-13",19,""],["2025-11-05",17.2,""],["2025-12-05",11.2,""],["2026-01-06",12.9,""],["2026-02-04",12,""],["2026-03-03",15.5,""],["2026-05-01",18.1,""],["2026-06-02",20.5,""]]},
 {c:"Thyroid",t:"Free T3",u:"pmol/L",ref:"3.0–5.5 CP / 3.5–6.5 ACL",lo:3,hi:5.5,p:[["2025-04-04",3.4,""],["2025-05-27",3.8,""],["2025-06-27",4.0,""],["2025-10-13",5.0,""],["2025-12-05",4.0,""],["2026-01-06",4.3,""],["2026-03-03",5.0,""],["2026-05-01",5.0,""],["2026-06-02",5.0,""]]},
@@ -334,8 +464,32 @@ const WATCH=[
 {p:"g",t:"Lipids — improved on treatment",x:"The Jan 2026 panel (chol 4.2, LDL 3.0, non-HDL 3.3, ApoB/A1 0.83) is much better than the pre-thyroxine Oct 2024 one. Low HDL (0.9) remains the one lingering flag."}
 ];
 
+/* ---------- merged data model (baked-in base + user additions) ---------- */
+const UKEY="ad_health_userdata_v1";
+let USER=[];              // [{d,c,t,v,u,ref,lab,f,ct,clo,chi,lo,hi}]
+let S=[], LAB={}, ROWS=[];
+function loadUser(){try{const r=JSON.parse(localStorage.getItem(UKEY)||"[]");USER=Array.isArray(r)?r:[];}catch(e){USER=[];}}
+function saveUser(){try{localStorage.setItem(UKEY,JSON.stringify(USER));}catch(e){toast("Couldn't save to this browser (storage blocked).");}}
+function rebuild(){
+  S=JSON.parse(JSON.stringify(BASE_S));
+  LAB=Object.assign({},BASE_LAB);
+  USER.forEach(e=>{
+    if(e.lab)LAB[e.d]=e.lab;
+    let s=S.find(x=>x.c===e.c&&x.t===e.t);
+    if(!s){s={c:e.c,t:e.t,u:e.u||"",ref:e.ref||""};["ct","clo","chi","lo","hi"].forEach(k=>{if(e[k]!=null&&e[k]!=="")s[k]=e[k];});s.p=[];S.push(s);}
+    else if(e.u&&!s.u)s.u=e.u;
+    s.p=s.p.filter(pt=>pt[0]!==e.d);      // same date replaces
+    s.p.push([e.d,e.v,e.f||""]);
+    s.p.sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  });
+}
+
 /* ---------- helpers ---------- */
-const fmtD=iso=>{const d=new Date(iso);return d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"2-digit"})};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+function parseISO(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));return m?new Date(+m[1],+m[2]-1,+m[3]):new Date(iso);}
+const fmtD=iso=>parseISO(iso).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"2-digit"});
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function cflag(s,v){
   if(typeof v!=="number")return null;
@@ -352,34 +506,33 @@ const SNAP=[["TSH","Thyroid"],["Free T4","Thyroid"],["Ferritin","Iron studies"],
 const STALE_MONTHS=9;
 function snap(){
   const el=document.getElementById("snapcards");el.innerHTML="";
-  const now=new Date("2026-07-05");
+  const now=new Date();
   SNAP.forEach(([t,c])=>{
-    const s=S.find(x=>x.t===t&&x.c===c);if(!s)return;
+    const s=S.find(x=>x.t===t&&x.c===c);if(!s||!s.p.length)return;
     const [d,v,f]=s.p[s.p.length-1];
     const ef=eflag(s,v,f);
-    const months=(now-new Date(d))/2629800000;
+    const months=(now-parseISO(d))/2629800000;
     let pill=ef==="H"?'<span class="pill hi">ABOVE TARGET</span>':ef==="L"?'<span class="pill lo">BELOW TARGET</span>':'<span class="pill ok">On target</span>';
     if(months>STALE_MONTHS)pill+=' <span class="pill stale">retest?</span>';
-    const tgt=s.ct?`target ${s.ct}`:`ref ${s.ref}`;
-    el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">${fmtD(d)} · ${tgt}</div></div>`);
+    const tgt=s.ct?`target ${esc(s.ct)}`:`ref ${esc(s.ref)}`;
+    el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${esc(t)}</div><div class="v">${esc(v)}<small>${esc(s.u)}</small></div>${pill}<div class="d">${fmtD(d)} · ${tgt}</div></div>`);
   });
 }
-(()=>{const el=document.getElementById("lipidcards");
-["Cholesterol","LDL","HDL","Chol/HDL ratio","Non-HDL","Triglyceride"].forEach(t=>{const s=S.find(x=>x.c==="Lipids"&&x.t===t);if(!s)return;
-const[d,v,f]=s.p[s.p.length-1];
-const pill=f==="H"?'<span class="pill hi">HIGH</span>':f==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
-el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${s.t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">${fmtD(d)} · ref ${s.ref}</div></div>`);});})();
-(()=>{const el=document.getElementById("metcards");
-[["Glucose (fasting)","Metabolic & glucose"],["Glucose (post-prandial)","Metabolic & glucose"],["HbA1c","Metabolic & glucose"],["Uric acid","Kidney & electrolytes"],["Calcium","Kidney & electrolytes"],["CRP","Inflammation"],["HsCRP","Inflammation"],["ESR","Inflammation"]].forEach(([t,c])=>{const s=S.find(x=>x.c===c&&x.t===t);if(!s)return;
-const[d,v,f]=s.p[s.p.length-1];
-const pill=f==="H"?'<span class="pill hi">HIGH</span>':f==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
-el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${t}</div><div class="v">${v}<small>${s.u}</small></div>${pill}<div class="d">ref ${s.ref}</div></div>`);});})();
+function renderLipids(){const el=document.getElementById("lipidcards");el.innerHTML="";
+["Cholesterol","LDL","HDL","Chol/HDL ratio","Non-HDL","Triglyceride"].forEach(t=>{const s=S.find(x=>x.c==="Lipids"&&x.t===t);if(!s||!s.p.length)return;
+const[d,v,f]=s.p[s.p.length-1];const ef=eflag(s,v,f);
+const pill=ef==="H"?'<span class="pill hi">HIGH</span>':ef==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
+el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${esc(s.t)}</div><div class="v">${esc(v)}<small>${esc(s.u)}</small></div>${pill}<div class="d">${fmtD(d)} · ref ${esc(s.ref)}</div></div>`);});}
+function renderMet(){const el=document.getElementById("metcards");el.innerHTML="";
+[["Glucose (fasting)","Metabolic & glucose"],["Glucose (post-prandial)","Metabolic & glucose"],["HbA1c","Metabolic & glucose"],["Uric acid","Kidney & electrolytes"],["Calcium","Kidney & electrolytes"],["CRP","Inflammation"],["HsCRP","Inflammation"],["ESR","Inflammation"]].forEach(([t,c])=>{const s=S.find(x=>x.c===c&&x.t===t);if(!s||!s.p.length)return;
+const[d,v,f]=s.p[s.p.length-1];const ef=eflag(s,v,f);
+const pill=ef==="H"?'<span class="pill hi">HIGH</span>':ef==="L"?'<span class="pill lo">LOW</span>':'<span class="pill ok">In range</span>';
+el.insertAdjacentHTML("beforeend",`<div class="card"><div class="t">${esc(t)}</div><div class="v">${esc(v)}<small>${esc(s.u)}</small></div>${pill}<div class="d">ref ${esc(s.ref)}</div></div>`);});}
 
-(()=>{const el=document.getElementById("timeline");
-EVENTS.forEach(e=>el.insertAdjacentHTML("beforeend",`<div class="tle${e.warn?" warn":""}"><div class="td">${e.d}</div><div class="tt">${e.t}</div><div class="tx">${e.x}</div></div>`));})();
-
-(()=>{const el=document.getElementById("watchitems");
-WATCH.forEach(w=>el.insertAdjacentHTML("beforeend",`<div class="wi"><div class="dot ${w.p}"></div><div><b>${w.t}</b><p>${w.x}</p></div></div>`));})();
+function renderTimelineOnce(){const el=document.getElementById("timeline");el.innerHTML="";
+EVENTS.forEach(e=>el.insertAdjacentHTML("beforeend",`<div class="tle${e.warn?" warn":""}"><div class="td">${e.d}</div><div class="tt">${e.t}</div><div class="tx">${e.x}</div></div>`));}
+function renderWatchOnce(){const el=document.getElementById("watchitems");el.innerHTML="";
+WATCH.forEach(w=>el.insertAdjacentHTML("beforeend",`<div class="wi"><div class="dot ${w.p}"></div><div><b>${w.t}</b><p>${w.x}</p></div></div>`));}
 
 let charts=[];
 const bandPlugin={id:"band",beforeDraw(ch,args,opts){if(opts.lo==null&&opts.hi==null)return;
@@ -426,36 +579,275 @@ function drawAll(){
   mk("c_prog",[series("Progesterone","Hormones & fertility",A)],{lo:30,hi:null},{min:0,max:45});
 }
 
-const ROWS=[];
-S.forEach(s=>s.p.forEach(([d,v,f])=>ROWS.push({d,c:s.c,t:s.t,v,u:s.u,ref:s.ct?s.ct:s.ref,f:eflag(s,v,f),lab:LAB[d]||""})));
-ROWS.sort((a,b)=>b.d.localeCompare(a.d)||a.c.localeCompare(b.c));
-(()=>{const sel=document.getElementById("catf");
-[...new Set(S.map(s=>s.c))].forEach(c=>sel.insertAdjacentHTML("beforeend",`<option>${c}</option>`));})();
+function buildRows(){
+  ROWS=[];
+  S.forEach(s=>s.p.forEach(([d,v,f])=>ROWS.push({d,c:s.c,t:s.t,v,u:s.u,ref:s.ct?s.ct:s.ref,f:eflag(s,v,f),lab:LAB[d]||""})));
+  ROWS.sort((a,b)=>String(b.d).localeCompare(String(a.d))||a.c.localeCompare(b.c));
+}
+function renderCatFilter(){
+  const sel=document.getElementById("catf"),cur=sel.value;
+  sel.innerHTML='<option value="">All categories</option>';
+  [...new Set(S.map(s=>s.c))].sort().forEach(c=>sel.insertAdjacentHTML("beforeend",`<option>${esc(c)}</option>`));
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+}
 function renderTable(){
   const q=document.getElementById("q").value.toLowerCase(),cat=document.getElementById("catf").value,fo=document.getElementById("flagonly").checked;
   const tb=document.getElementById("tbody");tb.innerHTML="";
   let n=0;
   ROWS.forEach(r=>{
     if(cat&&r.c!==cat)return;if(fo&&!r.f)return;
-    if(q&&!(r.t.toLowerCase().includes(q)||r.c.toLowerCase().includes(q)))return;
+    if(q&&!(r.t.toLowerCase().includes(q)||r.c.toLowerCase().includes(q)||String(r.lab).toLowerCase().includes(q)))return;
     n++;
-    tb.insertAdjacentHTML("beforeend",`<tr><td>${fmtD(r.d)}</td><td>${r.c}</td><td>${r.t}</td><td class="${r.f?("f"+r.f):""}"><span class="${r.f?("f"+r.f):""}">${r.v}</span></td><td>${r.u}</td><td>${r.ref}</td><td>${r.f==="H"?'<span class="fH">▲ Above</span>':r.f==="L"?'<span class="fL">▼ Below</span>':""}</td><td>${r.lab}</td></tr>`);
+    tb.insertAdjacentHTML("beforeend",`<tr><td>${fmtD(r.d)}</td><td>${esc(r.c)}</td><td>${esc(r.t)}</td><td class="${r.f?("f"+r.f):""}">${esc(r.v)}</td><td>${esc(r.u)}</td><td>${esc(r.ref)}</td><td>${r.f==="H"?'<span class="fH">▲ Above</span>':r.f==="L"?'<span class="fL">▼ Below</span>':""}</td><td>${esc(r.lab)}</td></tr>`);
   });
   document.getElementById("rowcount").textContent=n+" results shown · "+ROWS.length+" total on record";
 }
-
-(()=>{const tb=document.getElementById("printlatest");
-SNAP.forEach(([t,c])=>{const s=S.find(x=>x.t===t&&x.c===c);if(!s)return;const[d,v,f]=s.p[s.p.length-1];
+function renderPrintLatest(){const tb=document.getElementById("printlatest");tb.innerHTML="";
+SNAP.forEach(([t,c])=>{const s=S.find(x=>x.t===t&&x.c===c);if(!s||!s.p.length)return;const[d,v,f]=s.p[s.p.length-1];
 const ef=eflag(s,v,f);
-tb.insertAdjacentHTML("beforeend",`<tr><td>${t}${ef?" ("+(ef==="H"?"above target":"below target")+")":""}</td><td>${v} ${s.u}</td><td>${s.ct?s.ct:s.ref}</td><td>${fmtD(d)}</td></tr>`);});})();
+tb.insertAdjacentHTML("beforeend",`<tr><td>${esc(t)}${ef?" ("+(ef==="H"?"above target":"below target")+")":""}</td><td>${esc(v)} ${esc(s.u)}</td><td>${esc(s.ct?s.ct:s.ref)}</td><td>${fmtD(d)}</td></tr>`);});}
+
+function renderAll(){
+  rebuild();buildRows();
+  snap();renderLipids();renderMet();renderCatFilter();renderTable();renderPrintLatest();drawAll();updateUCount();
+}
 
 function toggleTheme(){
-  const h=document.documentElement,dark=h.getAttribute("data-theme")==="dark";
-  h.setAttribute("data-theme",dark?"light":"dark");
+  const h=document.documentElement,dark=h.getAttribute("data-theme")==="dark",next=dark?"light":"dark";
+  h.setAttribute("data-theme",next);
+  try{localStorage.setItem("ad_theme",next);}catch(e){}
   document.getElementById("themebtn").textContent=dark?"Dark":"Light";
   drawAll();
 }
-snap();renderTable();drawAll();
+
+/* ================= ADD / SCAN / IMPORT-EXPORT ================= */
+const val=id=>document.getElementById(id).value;
+function warn(m){document.getElementById("addmsg").textContent=m||"";}
+let toastT;
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2800);}
+function download(name,text,type){const b=new Blob([text],{type});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+function updateUCount(){const b=document.getElementById("ucount");if(USER.length){b.style.display="";b.textContent=USER.length;}else b.style.display="none";}
+
+const ALIAS={
+ "TSH":["thyroid stimulating hormone","thyrotropin"],
+ "Free T4":["ft4","free thyroxine","free t4"],
+ "Free T3":["ft3","free triiodothyronine","free t3"],
+ "TPO Antibodies":["anti-tpo","anti tpo","thyroid peroxidase antibod","tpo antibod","tpo ab"],
+ "Thyroglobulin Antibodies":["thyroglobulin antibod","anti-tg antibod","anti tg antibod","tg antibod"],
+ "Ferritin":["ferritin"],"Iron":["serum iron"],
+ "Transferrin saturation":["transferrin saturation","transferrin sat"],
+ "Transferrin":["transferrin"],"TIBC":["tibc","total iron binding"],
+ "Haemoglobin":["haemoglobin","hemoglobin","hgb"],
+ "MCV":["mean cell volume","mean corpuscular volume"],
+ "MCH":["mean cell haemoglobin","mean corpuscular haemoglobin"],
+ "MCHC":["mchc"],"RDW":["red cell distribution"],
+ "White cell count":["white cell count","white blood cell","leucocyte","leukocyte"],
+ "Platelets":["platelet count","platelets"],
+ "Red cell count":["red cell count","red blood cell count"],
+ "Haematocrit":["haematocrit","hematocrit"],
+ "Neutrophils":["neutrophil"],"Lymphocytes":["lymphocyte"],"Monocytes":["monocyte"],
+ "Eosinophils":["eosinophil"],"Basophils":["basophil"],"MPV":["mean platelet volume"],
+ "Vitamin D (25-OH)":["vitamin d","25-oh","25 oh","25-hydroxy","25 hydroxy","cholecalciferol"],
+ "Vitamin B12":["vitamin b12","cobalamin"],"Active B12":["active b12","holotranscobalamin"],
+ "Folate":["folate","folic acid"],
+ "Prolactin":["prolactin"],"Progesterone":["progesterone"],
+ "FSH":["follicle stimulating"],"LH":["luteinizing","luteinising"],
+ "Oestradiol":["oestradiol","estradiol"],"AMH":["anti-mullerian","anti mullerian","amh"],
+ "hCG":["beta hcg","b-hcg","hcg"],
+ "Cholesterol":["total cholesterol"],"Triglyceride":["triglyceride"],
+ "HDL":["hdl cholesterol"],"LDL":["ldl cholesterol"],"Non-HDL":["non-hdl","non hdl"],
+ "Chol/HDL ratio":["chol/hdl","cholesterol/hdl","chol hdl ratio"],
+ "Apolipoprotein A1":["apolipoprotein a1","apo a1"],"Apolipoprotein B":["apolipoprotein b","apo b"],
+ "Apo B/A1 ratio":["apo b/a1","apob/apoa1"],
+ "Glucose (fasting)":["fasting glucose","fasting blood sugar","glucose fasting"],
+ "Glucose (post-prandial)":["post prandial glucose","postprandial glucose","pp glucose"],
+ "HbA1c":["hba1c","glycated haemoglobin","glycosylated haemoglobin"],
+ "CRP":["c-reactive protein","c reactive protein"],
+ "HsCRP":["hs-crp","hscrp","high sensitivity crp","high-sensitivity crp"],
+ "ESR":["sed rate","sedimentation rate"],
+ "Uric acid":["uric acid","urate"],"Creatinine":["creatinine"],"eGFR":["egfr"],
+ "Urea":["urea"],"Sodium":["sodium"],"Potassium":["potassium"],"Chloride":["chloride"],
+ "Bicarbonate":["bicarbonate"],"Calcium":["calcium"],"Phosphorus":["phosphorus","phosphate"],
+ "AST":["aspartate aminotransferase"],"ALT":["alanine aminotransferase"],
+ "Alk Phos":["alkaline phosphatase","alk phos"],"Gamma GT":["gamma gt","gamma-glutamyl"],
+ "Total Bilirubin":["bilirubin"],"Albumin":["albumin"],"Total Protein":["total protein"],"Globulin":["globulin"],
+ "CPK Total":["creatine kinase","cpk"],"LDH":["lactate dehydrogenase"],"CEA":["carcinoembryonic"]
+};
+const MONTHS={jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12"};
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+
+function dictFind(c,t){t=(t||"").toLowerCase();c=(c||"").toLowerCase();
+  return S.find(s=>s.t.toLowerCase()===t&&(!c||s.c.toLowerCase()===c))||S.find(s=>s.t.toLowerCase()===t)||null;}
+function autoFlag(v,m){if(typeof v!=="number"||!m)return"";const hi=m.chi!=null?m.chi:m.hi,lo=m.clo!=null?m.clo:m.lo;
+  if(hi!=null&&v>hi)return"H";if(lo!=null&&v<lo)return"L";return"";}
+function coerce(v){if(typeof v==="number")return v;const s=String(v).trim();return /^-?\d+(\.\d+)?$/.test(s)?parseFloat(s):s;}
+function makeEntry(c,t,v,u,ref,lab,d,flag,meta){
+  const val2=coerce(v);
+  let f=flag;if(flag==null||flag==="auto")f=autoFlag(val2,meta)||"";
+  const e={d,c:c.trim(),t:t.trim(),v:val2,u:u||"",ref:ref||"",lab:lab||"",f};
+  if(meta&&!dictFind(c,t)){["ct","clo","chi","lo","hi"].forEach(k=>{if(meta[k]!=null)e[k]=meta[k];});}
+  return e;
+}
+
+/* ---- modal / tabs ---- */
+function openAdd(tab){document.getElementById("addback").classList.add("open");
+  if(!val("m_date"))document.getElementById("m_date").value=todayISO();
+  if(!val("s_date"))document.getElementById("s_date").value=todayISO();
+  refreshDatalists();switchTab(tab||"manual");}
+function closeAdd(){document.getElementById("addback").classList.remove("open");warn("");}
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tab===name));
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("on",p.id==="pane-"+name));
+  document.getElementById("addsave").style.display=name==="manual"?"":"none";
+  if(name==="manage")renderManage();
+  warn("");
+}
+function toggleMenu(e){e.stopPropagation();document.getElementById("datamenu").classList.toggle("open");}
+function refreshDatalists(){
+  fillDL("dl_cats",[...new Set(S.map(s=>s.c))].sort());
+  fillDL("dl_tests",[...new Set(S.map(s=>s.t))].sort());
+  fillDL("dl_labs",[...new Set(Object.values(LAB))].filter(Boolean).sort());
+}
+function fillDL(id,arr){document.getElementById(id).innerHTML=arr.map(x=>`<option value="${esc(x)}">`).join("");}
+
+/* ---- manual entry ---- */
+function onTestPick(){
+  const c=val("m_cat"),t=val("m_test"),m=dictFind(c,t),hint=document.getElementById("m_hint");
+  if(m){
+    if(!val("m_unit"))document.getElementById("m_unit").value=m.u||"";
+    if(!val("m_ref"))document.getElementById("m_ref").value=m.ct||m.ref||"";
+    if(!val("m_cat"))document.getElementById("m_cat").value=m.c;
+    hint.innerHTML=`Recognised <b>${esc(m.t)}</b> — unit &amp; range pre-filled. Left on “Auto”, the flag is computed from the target range.`;
+  }else if(t){
+    hint.innerHTML=`New marker <b>${esc(t)}</b> — it'll start a fresh series shown in the results table.`;
+  }else{hint.textContent="Pick an existing test to auto-fill its unit & range, or type a new test name to start tracking it.";}
+}
+function saveManual(){
+  const d=val("m_date"),c=val("m_cat").trim(),t=val("m_test").trim(),v=val("m_val").trim();
+  if(!d)return warn("Pick a collection date.");
+  if(!c)return warn("Enter a category.");
+  if(!t)return warn("Enter a test name.");
+  if(v==="")return warn("Enter a result value.");
+  const meta=dictFind(c,t);
+  const e=makeEntry(c,t,v,val("m_unit").trim()||(meta&&meta.u)||"",val("m_ref").trim()||(meta&&(meta.ct||meta.ref))||"",val("m_lab").trim(),d,val("m_flag"),meta);
+  USER.push(e);saveUser();renderAll();refreshDatalists();
+  toast(`Added ${e.t} (${e.v}) · ${fmtD(d)}`);warn("Saved. Add another, or Close.");
+  document.getElementById("m_val").value="";document.getElementById("m_test").focus();
+}
+
+/* ---- scan a report ---- */
+let SCAN=[];
+function loadScanFile(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{document.getElementById("s_text").value=rd.result;runScan();};rd.readAsText(f);}
+function guessDate(text){
+  let m=/collect[^\n]*?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/i.exec(text)||/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/.exec(text);
+  if(m){let y=m[3];y=y.length===2?"20"+y:y;return `${y}-${pad(m[2])}-${pad(m[1])}`;}
+  m=/(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})/.exec(text);
+  if(m){const mo=MONTHS[m[2].slice(0,3).toLowerCase()];if(mo)return `${m[3]}-${mo}-${pad(m[1])}`;}
+  m=/(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  return "";
+}
+function guessLab(text){const t=text.toLowerCase();
+  if(t.includes("clinipath")||t.includes("sonic"))return"Clinipath";
+  if(t.includes("australian clinical")||/\bacl\b/.test(t))return"ACL";
+  if(t.includes("metropolis"))return"Metropolis";return"";}
+function findValue(text,names){
+  for(const nm of names){if(!nm)continue;
+    const re=new RegExp(escRe(nm)+"[ :\\t.=)-]*[^\\n\\d<>]{0,22}?([<>]?\\s?\\d+(?:\\.\\d+)?)","i");
+    const m=re.exec(text);
+    if(m){const raw=m[1].replace(/\s+/g,"");const num=parseFloat(raw.replace(/[<>]/g,""));
+      const v=/^[<>]/.test(raw)?raw:(isNaN(num)?raw:num);
+      return{v,index:m.index,len:m[0].length};}
+  }
+  return null;
+}
+function runScan(){
+  let work=val("s_text");
+  if(!work.trim()){document.getElementById("scanresult").innerHTML='<p class="hint">Paste some report text first.</p>';return;}
+  const detDate=guessDate(work),detLab=guessLab(work);
+  if(detDate&&!val("s_date"))document.getElementById("s_date").value=detDate;
+  if(detLab&&!val("s_lab"))document.getElementById("s_lab").value=detLab;
+  const dict=S.map(s=>({c:s.c,t:s.t,u:s.u,ref:s.ref,lo:s.lo,hi:s.hi,ct:s.ct,clo:s.clo,chi:s.chi,
+    names:[s.t,...(ALIAS[s.t]||[])].sort((a,b)=>b.length-a.length)})).sort((a,b)=>b.t.length-a.t.length);
+  SCAN=[];
+  dict.forEach(e=>{
+    const hit=findValue(work,e.names);
+    if(hit){
+      const meta={chi:e.chi,clo:e.clo,hi:e.hi,lo:e.lo};
+      SCAN.push({c:e.c,t:e.t,u:e.u,ref:e.ref,v:hit.v,f:autoFlag(coerce(hit.v),meta),
+        isNew:!BASE_S.some(x=>x.c===e.c&&x.t===e.t),meta});
+      work=work.slice(0,hit.index)+" ".repeat(hit.len)+work.slice(hit.index+hit.len);
+    }
+  });
+  const box=document.getElementById("scanresult");
+  if(!SCAN.length){box.innerHTML='<p class="hint">No known tests matched. Try the Manual tab, or check the pasted text.</p>';return;}
+  const rows=SCAN.map((e,i)=>`<tr><td><input type="checkbox" checked data-i="${i}"></td><td>${esc(e.c)}<div class="${e.isNew?'new':'unk'}">${e.isNew?'new':'known'}</div></td><td>${esc(e.t)}</td><td><input type="text" value="${esc(String(e.v))}" data-v="${i}"></td><td>${esc(e.u||'')}</td><td>${e.f==='H'?'▲':e.f==='L'?'▼':''}</td></tr>`).join("");
+  box.innerHTML=`<p class="hint"><b>${SCAN.length}</b> value(s) found · batch date <b>${fmtD(val("s_date")||todayISO())}</b>. Untick anything wrong, edit values inline, then ingest.</p>
+  <table class="rev"><thead><tr><th></th><th>Category</th><th>Test</th><th>Value</th><th>Unit</th><th>Flag</th></tr></thead><tbody>${rows}</tbody></table>
+  <div style="margin-top:12px;text-align:right"><button class="btn-pri" onclick="ingestScan()">Ingest selected →</button></div>`;
+}
+function ingestScan(){
+  const d=val("s_date")||todayISO(),lab=val("s_lab").trim();
+  const box=document.getElementById("scanresult");let n=0;
+  box.querySelectorAll('input[type=checkbox]').forEach(ch=>{
+    if(!ch.checked)return;
+    const i=+ch.dataset.i,e=SCAN[i],vi=box.querySelector(`input[data-v="${i}"]`);
+    const raw=vi?vi.value.trim():String(e.v);if(raw==="")return;
+    USER.push(makeEntry(e.c,e.t,raw,e.u,e.ref,lab,d,"auto",e.meta));n++;
+  });
+  if(!n)return warn("Tick at least one row to ingest.");
+  saveUser();renderAll();refreshDatalists();
+  toast(`Ingested ${n} result(s) · ${fmtD(d)}`);
+  box.innerHTML="";document.getElementById("s_text").value="";switchTab("manage");
+}
+
+/* ---- manage / delete ---- */
+function renderManage(){
+  const el=document.getElementById("userlist");el.innerHTML="";
+  document.getElementById("manage_hint").innerHTML = USER.length
+    ? `<b>${USER.length}</b> result(s) you've added. They live in <b>this browser only</b> — use <b>Data ▾ → Export</b> to back them up or to bake them into the site.`
+    : "You haven't added any results yet. Anything you add is stored in this browser (use Export to keep a copy).";
+  USER.slice().reverse().forEach((e,i)=>{
+    const idx=USER.length-1-i;
+    el.insertAdjacentHTML("beforeend",`<div class="uitem"><div class="g"><b>${esc(e.t)}</b> ${esc(String(e.v))} ${esc(e.u||"")} · ${fmtD(e.d)} · ${esc(e.c)}${e.lab?" · "+esc(e.lab):""}${e.f?' · <span class="'+(e.f==="H"?"new":"unk")+'">'+(e.f==="H"?"▲ high":"▼ low")+'</span>':""}</div><button class="del" onclick="delUser(${idx})">Remove</button></div>`);
+  });
+}
+function delUser(i){const e=USER[i];USER.splice(i,1);saveUser();renderAll();refreshDatalists();renderManage();toast(`Removed ${e?e.t:"result"}`);}
+
+/* ---- export / import ---- */
+function exportJSON(){
+  download("health-data-additions.json",JSON.stringify({version:1,exported:new Date().toISOString(),added:USER},null,2),"application/json");
+  toast(`Exported ${USER.length} added result(s).`);
+}
+const csv=x=>{x=String(x==null?"":x);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;};
+function exportCSV(){
+  const lines=[["Date","Category","Test","Result","Unit","Reference/Target","Flag","Lab"].join(",")];
+  ROWS.forEach(r=>lines.push([r.d,r.c,r.t,r.v,r.u,r.ref,r.f==="H"?"High":r.f==="L"?"Low":"",r.lab].map(csv).join(",")));
+  download("health-results.csv",lines.join("\n"),"text/csv");
+  toast(`Exported ${ROWS.length} rows to CSV.`);
+}
+function importJSON(input){
+  const f=input.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const o=JSON.parse(rd.result),add=Array.isArray(o)?o:(o.added||[]);
+      if(!Array.isArray(add))throw 0;
+      let n=0;add.forEach(e=>{if(e&&e.d&&e.t&&e.c){USER.push(e);n++;}});
+      saveUser();renderAll();refreshDatalists();toast(`Imported ${n} result(s).`);
+    }catch(e){toast("Couldn't read that file as valid JSON.");}
+    input.value="";
+  };
+  rd.readAsText(f);
+}
+
+/* ---- init ---- */
+loadUser();renderTimelineOnce();renderWatchOnce();renderAll();refreshDatalists();
+document.getElementById("themebtn").textContent=document.documentElement.getAttribute("data-theme")==="dark"?"Light":"Dark";
+document.addEventListener("click",()=>document.getElementById("datamenu").classList.remove("open"));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAdd();});
+(function(){const ta=document.getElementById("s_text");if(!ta)return;
+  ["dragover","drop"].forEach(ev=>ta.addEventListener(ev,e=>e.preventDefault()));
+  ta.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f){const rd=new FileReader();rd.onload=()=>{ta.value=rd.result;runScan();};rd.readAsText(f);}});})();
 </script>
 </body>
 </html>
