@@ -139,6 +139,10 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
 .rev input[type=text]{width:100%;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
 .rev .new{color:var(--accent);font-size:10.5px;font-weight:600}
 .rev .unk{color:var(--ink3);font-size:10.5px}
+.rev .dup{color:var(--ink3);font-size:10.5px}
+.rev .upd{color:var(--high);font-size:10.5px;font-weight:600}
+.dupwarn{border-left:3px solid var(--high);padding-left:10px}
+.dupwarn:empty{display:none}
 .userlist{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto}
 .uitem{display:flex;gap:10px;align-items:center;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
 .uitem .g{flex:1}.uitem .del{color:var(--high);cursor:pointer;border:none;background:none;font-size:12px}
@@ -306,7 +310,7 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
       <!-- MANUAL -->
       <div class="tabpane on" id="pane-manual">
         <div class="frow">
-          <div class="fld"><label>Collection date</label><input type="date" id="m_date"></div>
+          <div class="fld"><label>Collection date</label><input type="date" id="m_date" oninput="dupHint()"></div>
           <div class="fld"><label>Lab</label><input type="text" id="m_lab" list="dl_labs" placeholder="Clinipath…"></div>
         </div>
         <div class="frow">
@@ -322,6 +326,7 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
           </div>
         </div>
         <p class="hint" id="m_hint">Pick an existing test to auto-fill its unit &amp; range, or type a new test name to start tracking it.</p>
+        <p class="hint dupwarn" id="m_dup"></p>
       </div>
 
       <!-- SCAN -->
@@ -332,7 +337,7 @@ footer{margin-top:60px;font-size:12px;color:var(--ink3);border-top:1px solid var
           </div>
         </div>
         <div class="frow" style="align-items:flex-end">
-          <div class="fld" style="max-width:190px"><label>Report date (fallback)</label><input type="date" id="s_date"></div>
+          <div class="fld" style="max-width:190px"><label>Report date (fallback)</label><input type="date" id="s_date" oninput="if(SCAN.length)renderScanTable()"></div>
           <div class="fld" style="max-width:170px"><label>Lab (optional)</label><input type="text" id="s_lab" list="dl_labs" placeholder="Auto-detect"></div>
           <div class="fld" style="max-width:150px"><label>&nbsp;</label><input type="file" id="s_file" accept=".txt,.csv,text/plain" onchange="loadScanFile(this)" style="padding:6px"></div>
           <div class="fld" style="flex:0"><label>&nbsp;</label><button class="btn-ghost" onclick="runScan()">Scan text →</button></div>
@@ -681,6 +686,27 @@ function dictFind(c,t){t=(t||"").toLowerCase();c=(c||"").toLowerCase();
 function autoFlag(v,m){if(typeof v!=="number"||!m)return"";const hi=m.chi!=null?m.chi:m.hi,lo=m.clo!=null?m.clo:m.lo;
   if(hi!=null&&v>hi)return"H";if(lo!=null&&v<lo)return"L";return"";}
 function coerce(v){if(typeof v==="number")return v;const s=String(v).trim();return /^-?\d+(\.\d+)?$/.test(s)?parseFloat(s):s;}
+/* ---- duplicate detection -----------------------------------------
+   existingPoint() looks at the MERGED data, so it catches collisions with
+   both the baked-in baseline and anything previously added/imported.
+   upsert() is the single write path: one result per (category, test, date). */
+function existingPoint(c,t,d){
+  const s=S.find(x=>x.c===c&&x.t===t);if(!s)return null;
+  const pt=s.p.find(p=>p[0]===d);
+  return pt?{v:pt[1],f:pt[2]}:null;
+}
+function sameVal(a,b){return String(coerce(a))===String(coerce(b));}
+function upsert(e){
+  const i=USER.findIndex(x=>x.c===e.c&&x.t===e.t&&x.d===e.d);
+  if(i>=0){                                   // already added by the user
+    if(sameVal(USER[i].v,e.v)&&(USER[i].lab||"")===(e.lab||""))return"identical";
+    USER[i]=e;return"updated";
+  }
+  const base=BASE_S.find(x=>x.c===e.c&&x.t===e.t);
+  const bp=base&&base.p.find(p=>p[0]===e.d);
+  if(bp&&sameVal(bp[1],e.v))return"identical"; // same as baked-in data — don't store a copy
+  USER.push(e);return bp?"updated":"added";
+}
 function makeEntry(c,t,v,u,ref,lab,d,flag,meta){
   const val2=coerce(v);
   let f=flag;if(flag==null||flag==="auto")f=autoFlag(val2,meta)||"";
@@ -721,6 +747,7 @@ function onTestPick(){
   }else if(t){
     hint.innerHTML=`New marker <b>${esc(t)}</b> — it'll start a fresh series shown in the results table.`;
   }else{hint.textContent="Pick an existing test to auto-fill its unit & range, or type a new test name to start tracking it.";}
+  dupHint();
 }
 function saveManual(){
   const d=val("m_date"),c=val("m_cat").trim(),t=val("m_test").trim(),v=val("m_val").trim();
@@ -730,9 +757,20 @@ function saveManual(){
   if(v==="")return warn("Enter a result value.");
   const meta=dictFind(c,t);
   const e=makeEntry(c,t,v,val("m_unit").trim()||(meta&&meta.u)||"",val("m_ref").trim()||(meta&&(meta.ct||meta.ref))||"",val("m_lab").trim(),d,val("m_flag"),meta);
-  USER.push(e);saveUser();renderAll();refreshDatalists();
-  toast(`Added ${e.t} (${e.v}) · ${fmtD(d)}`);warn("Saved. Add another, or Close.");
-  document.getElementById("m_val").value="";document.getElementById("m_test").focus();
+  const prev=existingPoint(e.c,e.t,d);
+  const r=upsert(e);saveUser();renderAll();refreshDatalists();
+  if(r==="identical"){toast(`${e.t} for ${fmtD(d)} is already on record — no change.`);warn("Already recorded with the same value — nothing changed.");}
+  else if(r==="updated"){toast(`Updated ${e.t}: ${prev?prev.v:"?"} → ${e.v} · ${fmtD(d)}`);warn(`Replaced the existing ${e.t} for that date (was ${prev?prev.v:"?"}).`);}
+  else{toast(`Added ${e.t} (${e.v}) · ${fmtD(d)}`);warn("Saved. Add another, or Close.");}
+  document.getElementById("m_val").value="";dupHint();document.getElementById("m_test").focus();
+}
+function dupHint(){
+  const el=document.getElementById("m_dup");if(!el)return;
+  const c=val("m_cat").trim(),t=val("m_test").trim(),d=val("m_date");
+  if(!t||!d){el.innerHTML="";return;}
+  const m=dictFind(c,t),cc=m?m.c:c,tt=m?m.t:t;
+  const prev=cc?existingPoint(cc,tt,d):null;
+  el.innerHTML=prev?`⚠︎ Already have <b>${esc(tt)}</b> for ${fmtD(d)}: <b>${esc(prev.v)}</b> — saving replaces it (no duplicate is created).`:"";
 }
 
 /* ---- scan a report ---- */
@@ -779,25 +817,51 @@ function runScan(){
       work=work.slice(0,hit.index)+" ".repeat(hit.len)+work.slice(hit.index+hit.len);
     }
   });
+  renderScanTable();
+}
+/* Status of each scanned row against what's already on record for the batch date.
+   Re-uploading an identical report leaves every row unticked, so ingest is a no-op. */
+function scanStatus(e,d){
+  const prev=existingPoint(e.c,e.t,d);
+  if(!prev)return{k:"new",label:e.isNew?"new marker":"new",cls:"new"};
+  if(sameVal(prev.v,e.v))return{k:"dup",label:"already recorded",cls:"dup"};
+  return{k:"upd",label:`changes ${prev.v} → ${coerce(e.v)}`,cls:"upd"};
+}
+function renderScanTable(){
   const box=document.getElementById("scanresult");
   if(!SCAN.length){box.innerHTML='<p class="hint">No known tests matched. Try the Manual tab, or check the pasted text.</p>';return;}
-  const rows=SCAN.map((e,i)=>`<tr><td><input type="checkbox" checked data-i="${i}"></td><td>${esc(e.c)}<div class="${e.isNew?'new':'unk'}">${e.isNew?'new':'known'}</div></td><td>${esc(e.t)}</td><td><input type="text" value="${esc(String(e.v))}" data-v="${i}"></td><td>${esc(e.u||'')}</td><td>${e.f==='H'?'▲':e.f==='L'?'▼':''}</td></tr>`).join("");
-  box.innerHTML=`<p class="hint"><b>${SCAN.length}</b> value(s) found · batch date <b>${fmtD(val("s_date")||todayISO())}</b>. Untick anything wrong, edit values inline, then ingest.</p>
-  <table class="rev"><thead><tr><th></th><th>Category</th><th>Test</th><th>Value</th><th>Unit</th><th>Flag</th></tr></thead><tbody>${rows}</tbody></table>
-  <div style="margin-top:12px;text-align:right"><button class="btn-pri" onclick="ingestScan()">Ingest selected →</button></div>`;
+  const d=val("s_date")||todayISO();
+  let nNew=0,nUpd=0,nDup=0;
+  const rows=SCAN.map((e,i)=>{
+    const st=scanStatus(e,d);
+    st.k==="new"?nNew++:st.k==="upd"?nUpd++:nDup++;
+    return `<tr><td><input type="checkbox" ${st.k==="dup"?"":"checked"} data-i="${i}"></td>`
+      +`<td>${esc(e.t)}<div class="unk">${esc(e.c)}</div></td>`
+      +`<td><input type="text" value="${esc(String(e.v))}" data-v="${i}"></td>`
+      +`<td>${esc(e.u||'')}</td><td>${e.f==='H'?'▲':e.f==='L'?'▼':''}</td>`
+      +`<td><span class="${st.cls}">${esc(st.label)}</span></td></tr>`;
+  }).join("");
+  const banner=(nNew===0&&nUpd===0)
+    ? `<p class="hint dupwarn"><b>Already ingested.</b> All ${nDup} value(s) for ${fmtD(d)} match what's on record — nothing is ticked, so ingesting changes nothing.</p>`
+    : `<p class="hint">Batch date <b>${fmtD(d)}</b> · <b>${nNew}</b> new, <b>${nUpd}</b> changed, <b>${nDup}</b> already recorded (unticked). Duplicates never create a second copy — a re-ingest replaces the value for that date.</p>`;
+  box.innerHTML=banner+`<table class="rev"><thead><tr><th></th><th>Test</th><th>Value</th><th>Unit</th><th>Flag</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+  <div style="margin-top:12px;text-align:right"><button class="btn-pri" onclick="ingestScan()">Ingest ticked →</button></div>`;
 }
 function ingestScan(){
   const d=val("s_date")||todayISO(),lab=val("s_lab").trim();
-  const box=document.getElementById("scanresult");let n=0;
+  const box=document.getElementById("scanresult");
+  let added=0,updated=0,identical=0,ticked=0;
   box.querySelectorAll('input[type=checkbox]').forEach(ch=>{
     if(!ch.checked)return;
+    ticked++;
     const i=+ch.dataset.i,e=SCAN[i],vi=box.querySelector(`input[data-v="${i}"]`);
     const raw=vi?vi.value.trim():String(e.v);if(raw==="")return;
-    USER.push(makeEntry(e.c,e.t,raw,e.u,e.ref,lab,d,"auto",e.meta));n++;
+    const r=upsert(makeEntry(e.c,e.t,raw,e.u,e.ref,lab,d,"auto",e.meta));
+    r==="added"?added++:r==="updated"?updated++:identical++;
   });
-  if(!n)return warn("Tick at least one row to ingest.");
+  if(!ticked)return warn("Nothing ticked — every value is already on record.");
   saveUser();renderAll();refreshDatalists();
-  toast(`Ingested ${n} result(s) · ${fmtD(d)}`);
+  toast(`${added} added · ${updated} updated · ${identical} already on record`);
   box.innerHTML="";document.getElementById("s_text").value="";switchTab("manage");
 }
 
@@ -832,8 +896,10 @@ function importJSON(input){
     try{
       const o=JSON.parse(rd.result),add=Array.isArray(o)?o:(o.added||[]);
       if(!Array.isArray(add))throw 0;
-      let n=0;add.forEach(e=>{if(e&&e.d&&e.t&&e.c){USER.push(e);n++;}});
-      saveUser();renderAll();refreshDatalists();toast(`Imported ${n} result(s).`);
+      let added=0,updated=0,identical=0,bad=0;
+      add.forEach(e=>{if(e&&e.d&&e.t&&e.c){const r=upsert(e);r==="added"?added++:r==="updated"?updated++:identical++;}else bad++;});
+      saveUser();renderAll();refreshDatalists();
+      toast(`Imported — ${added} added, ${updated} updated, ${identical} already on record${bad?`, ${bad} skipped`:""}.`);
     }catch(e){toast("Couldn't read that file as valid JSON.");}
     input.value="";
   };
